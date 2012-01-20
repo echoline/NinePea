@@ -191,6 +191,6 @@ typedef struct {
 } Callbacks;
 
 int putstat(unsigned char *buffer, int index, Stat *stat);
-unsigned char* proc9p(unsigned char *msg, unsigned long *size, Callbacks *cb);
+unsigned int proc9p(unsigned char *msg, unsigned long size, Callbacks *cb, unsigned char *str);
 
 #endif

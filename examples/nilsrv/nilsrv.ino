@@ -109,10 +109,20 @@ fs_flush(Fcall *ifcall) {
 
 Callbacks callbacks;
 
+void
+die(unsigned char code) {
+  pinMode(13, OUTPUT);	
+
+  while(true) {
+    digitalWrite(13, HIGH);
+    delay(1000);
+    digitalWrite(13, LOW);
+    delay(code * 1000);
+  }
+}
+
 void setup() {
   Serial.begin(115200);
-  pinMode(13, OUTPUT);
-  digitalWrite(13, HIGH);
   
   callbacks.version = fs_version;
   callbacks.attach = fs_attach;
@@ -127,13 +137,13 @@ void setup() {
   callbacks.stat = fs_stat;
 }
 
-unsigned int len = 0;
+unsigned long len = 0;
 unsigned char msg[MAX_MSG+1];
-unsigned int msglen = 0;
-unsigned char *out;
+unsigned long msglen = 0;
+unsigned char out[MAX_MSG+1];
 
 void loop() {
-  uint32_t i;
+  unsigned long i;
   
   digitalWrite(13, LOW);  
   
@@ -144,12 +154,7 @@ void loop() {
       break;
       
     if (len >= MAX_MSG) {
-      while(true) {
-        digitalWrite(13, HIGH);
-        delay(1000);
-        digitalWrite(13, LOW);
-        delay(1000);
-      }
+	die(1);
     }
   }
  
@@ -161,41 +166,22 @@ void loop() {
     get4(msg, i, msglen);
     
     if (msglen > MAX_MSG) {
-      while(true) {
-         digitalWrite(13, HIGH);
-         delay(1000);
-         digitalWrite(13, LOW);
-         delay(3000);
-      }
+	die(3);
     }
     
     return;
   }
 
-  if (len >= msglen) {
-     digitalWrite(13, HIGH);
-     
-     i = msglen;
-     out = proc9p(msg, &i, &callbacks);
+  if (len == msglen) {
+     msglen = proc9p(msg, msglen, &callbacks, out);
 
-     if (len > msglen)
-       memmove(msg, msg + msglen, len - msglen);
-     len -= msglen;
-
-     msglen = i;
-     
-     for (i = 0; i < msglen; i++)
+     for (; i < msglen; i++)
        Serial.write(out[i]);
      
-     msglen = 0;
+     len = msglen = 0;
      
      return;
   }
   
-  while(true) {
-    digitalWrite(13, HIGH);
-    delay(1000);
-    digitalWrite(13, LOW);
-    delay(5000);
-  }
+  die(5);
 }

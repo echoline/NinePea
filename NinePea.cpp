@@ -1,7 +1,5 @@
 #include "NinePea.h"
 
-unsigned char str[MAX_MSG+1];
-
 int
 puthdr(unsigned char *buf, int index, unsigned char type, unsigned int tag, unsigned long size) {
 	put4(buf, index, size);
@@ -65,20 +63,20 @@ putstat(unsigned char *buffer, int index, Stat *stat) {
 	index += muidlen;
 	free(stat->muid);
 
-	return size;
+	return size + 2;
 }
 
-unsigned char*
-proc9p(unsigned char *msg, unsigned long *size, Callbacks *cb) {
+unsigned int
+proc9p(unsigned char *msg, unsigned long size, Callbacks *cb, unsigned char *str) {
 	Fcall *ifcall = (Fcall*)calloc(1, sizeof(Fcall));
 	Fcall *ofcall = NULL;
-	unsigned int slen;
-	int index = 4, tmp;
+	unsigned int slen, index = 4;
+	unsigned char i;
 
 	ifcall->type = msg[index++];
 	get2(msg, index, ifcall->tag);
 
-	if (*size > MAX_MSG) {
+	if (size > MAX_MSG) {
 		index = mkerr(str, ifcall->tag, "message too big");
 		goto END;
 	}
@@ -159,14 +157,14 @@ proc9p(unsigned char *msg, unsigned long *size, Callbacks *cb) {
 		if (ifcall->nwname > MAX_WELEM)
 			ifcall->nwname = MAX_WELEM;
 
-		tmp = 0;
-		while (tmp < ifcall->nwname) {
+		i = 0;
+		while (i < ifcall->nwname) {
 			get2(msg, index, slen);
-			ifcall->wname[tmp] = (char*)malloc(slen+1);
-			memcpy(ifcall->wname[tmp], &msg[index], slen);
-			ifcall->wname[tmp][slen] = '\0';
+			ifcall->wname[i] = (char*)malloc(slen+1);
+			memcpy(ifcall->wname[i], &msg[index], slen);
+			ifcall->wname[i][slen] = '\0';
 			index += slen;
-			tmp++;
+			i++;
 		}
 
 		ofcall = cb->walk(ifcall);
@@ -184,13 +182,13 @@ proc9p(unsigned char *msg, unsigned long *size, Callbacks *cb) {
 		index = puthdr(str, 0, RWalk, ifcall->tag, 9 + ofcall->nwqid * 13);
 		put2(str, index, ofcall->nwqid);
 
-		tmp = 0;
-		while (tmp < ofcall->nwqid) {
-			str[index++] = ofcall->wqid[tmp].type;
-			put4(str, index, ofcall->wqid[tmp].version);
-			put8(str, index, ofcall->wqid[tmp].path, 0);
+		i = 0;
+		while (i < ofcall->nwqid) {
+			str[index++] = ofcall->wqid[i].type;
+			put4(str, index, ofcall->wqid[i].version);
+			put8(str, index, ofcall->wqid[i].path, 0);
 
-			tmp++;
+			i++;
 		}
 
 		break;
@@ -207,7 +205,6 @@ proc9p(unsigned char *msg, unsigned long *size, Callbacks *cb) {
 		}
 
 		slen = putstat(str, 9, &(ofcall->stat));
-		slen += 2;
 		index = puthdr(str, 0, RStat, ifcall->tag, slen + 9);
 		put2(str, index, slen);	// bleh?
 		index += slen;
@@ -266,8 +263,8 @@ proc9p(unsigned char *msg, unsigned long *size, Callbacks *cb) {
 		index = puthdr(str, 0, RRead, ifcall->tag, 11 + ofcall->count);
 		put4(str, index, ofcall->count);
 		memcpy(&str[index], ofcall->data, ofcall->count);
-		index += ofcall->count;
 		free(ofcall->data);
+		index += ofcall->count;
 
 		break;
 	case TCreate:
@@ -372,7 +369,5 @@ END:
 	if (index > MAX_MSG)
 		index = mkerr(str, ifcall->tag, "resulting message too big");
 
-	*size = index;
-
-	return str;
+	return index;
 }
