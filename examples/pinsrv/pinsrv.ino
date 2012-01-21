@@ -112,6 +112,7 @@ fs_attach(Fcall *ifcall) {
   Fcall *ofcall = (Fcall*)calloc(1, sizeof(Fcall));
 
   ofcall->qid.type = QTDIR | QTTMP;
+  ofcall->qid.path = Qroot;
 
   fs_fid_add(ifcall->fid, Qroot);
 
@@ -132,26 +133,22 @@ fs_walk(Fcall *ifcall) {
     return ofcall;
   }
 
+  path = ent->data;
+
   for (i = 0; i < ifcall->nwname; i++) {
     switch(ent->data) {
     case Qroot:
-      if (!strcmp(ifcall->wname[i], "arductl")) {
-        path = Qctl;
+      if (!strcmp(ifcall->wname[i], "arduinoctl")) {
         ofcall->wqid[i].type = QTTMP;
-        ofcall->wqid[i].path = Qctl;
-        ofcall->wqid[i].version = 0;
+        ofcall->wqid[i].path = path = Qctl;
       } 
-      else if (!strcmp(ifcall->wname[i], "ardudata")) {
-        path = Qdata;
+      else if (!strcmp(ifcall->wname[i], "arduino")) {
         ofcall->wqid[i].type = QTTMP;
-        ofcall->wqid[i].path = Qdata;
-        ofcall->wqid[i].version = 0;
+        ofcall->wqid[i].path = path = Qdata;
       } 
       else if (!strcmp(ifcall->wname[i], ".")) {
-        path = Qroot;
         ofcall->wqid[i].type = QTTMP | QTDIR;
-        ofcall->wqid[i].path = Qroot;
-        ofcall->wqid[i].version = 0;
+        ofcall->wqid[i].path = path = Qroot;
       } 
       else {
         ofcall->type = RError;
@@ -163,10 +160,8 @@ fs_walk(Fcall *ifcall) {
     case Qdata:
     case Qctl:
       if (!strcmp(ifcall->wname[i], "..")) {
-        path = Qroot;
         ofcall->wqid[i].type = QTTMP | QTDIR;
-        ofcall->wqid[i].path = Qroot;
-        ofcall->wqid[i].version = 0;
+        ofcall->wqid[i].path = path = Qroot;
       } 
       else {
         ofcall->type = RError;
@@ -207,14 +202,17 @@ fs_stat(Fcall *ifcall) {
   switch (ent->data) {
   case Qroot:
     ofcall->stat.qid.type |= QTDIR;
+    ofcall->stat.qid.path = Qroot;
     ofcall->stat.mode |= 0111 | DMDIR;
-    ofcall->stat.name = strdup("arduino/");
+    ofcall->stat.name = strdup("/");
     break;
   case Qctl:
-    ofcall->stat.name = strdup("arduino/arductl");
+    ofcall->stat.qid.path = Qctl;
+    ofcall->stat.name = strdup("arduinoctl");
     break;
   case Qdata:
-    ofcall->stat.name = strdup("arduino/ardudata");
+    ofcall->stat.qid.path = Qdata;
+    ofcall->stat.name = strdup("arduino");
     break;
   }
 
@@ -241,8 +239,8 @@ fs_open(Fcall *ifcall) {
   }
 
   ofcall = (Fcall*)calloc(1, sizeof(Fcall));
-  ofcall->iounit = MAX_IO; // or so
   ofcall->qid.type = QTTMP;
+  ofcall->qid.path = cur->data;
 
   if (cur->data == Qroot)
     ofcall->qid.type |= QTDIR;
@@ -251,7 +249,7 @@ fs_open(Fcall *ifcall) {
 }
 
 Fcall*
-fs_read(Fcall *ifcall, unsigned char *out, unsigned int outlen) {
+fs_read(Fcall *ifcall, unsigned char *out) {
   Fcall *ofcall = (Fcall*)calloc(1, sizeof(Fcall));
   struct hentry *cur = fs_fid_find(ifcall->fid);
   Stat stat;
@@ -261,10 +259,10 @@ fs_read(Fcall *ifcall, unsigned char *out, unsigned int outlen) {
 
   if (cur == NULL) {
     ofcall->type = RError;
-    ofcall->ename = strdup("file not found");
+    ofcall->ename = strdup("invalid fid");
   }
   else if (((unsigned long)cur->data) == Qdata) {
-    snprintf((char*)out, outlen - 1, "digital pins:\n");
+    snprintf((char*)out, MAX_IO - 1, "digital pins:\n");
 
     for (i = 2; i < 14; i++) {
       if (digitalRead(i))
@@ -272,16 +270,16 @@ fs_read(Fcall *ifcall, unsigned char *out, unsigned int outlen) {
       else
         snprintf(tmpstr, sizeof(tmpstr), "\t%d:\t LOW\n", i);
 
-      strlcat((char*)out, tmpstr, outlen);
+      strlcat((char*)out, tmpstr, MAX_IO);
     }
 
     snprintf(tmpstr, sizeof(tmpstr), "analog pins:\n");
-    strlcat((char*)out, tmpstr, outlen);
+    strlcat((char*)out, tmpstr, MAX_IO);
 
     for (i = A0; i <= A5; i++) {
       value = analogRead(i - A0);
       snprintf(tmpstr, sizeof(tmpstr), "\t%d:\t%04d\n", i, value);
-      strlcat((char*)out, tmpstr, outlen);
+      strlcat((char*)out, tmpstr, MAX_IO);
     }
 
     ofcall->count = strlen((char*)out) - ifcall->offset;
@@ -299,20 +297,19 @@ fs_read(Fcall *ifcall, unsigned char *out, unsigned int outlen) {
     stat.type = 0;
     stat.dev = 0;
     stat.qid.type = QTTMP;
-    stat.qid.version = 0;
     stat.qid.path = Qdata;
     stat.mode = 0666 | DMTMP;
     stat.atime = 0;
     stat.mtime = 0;
     stat.length = 0;
-    stat.name = strdup("ardudata");
+    stat.name = strdup("arduino");
     stat.uid = strdup("none");
     stat.gid = strdup("none");
     stat.muid = strdup("none");
     ofcall->count = putstat(out, 0, &stat);
 
     stat.qid.path = Qctl;
-    stat.name = strdup("arductl");
+    stat.name = strdup("arduinoctl");
     stat.uid = strdup("none");
     stat.gid = strdup("none");
     stat.muid = strdup("none");
@@ -342,12 +339,121 @@ fs_create(Fcall *ifcall) {
   return ofcall;
 }
 
-Fcall*
-fs_write(Fcall *ifcall) {
-  Fcall *ofcall = (Fcall*)calloc(1, sizeof(Fcall));
+/* interlude...? */
 
-  ofcall->type = RError;
-  ofcall->ename = strdup("write not allowed");
+void
+readpinvalue(char *line, unsigned char *pin, unsigned char *value) {
+  char *p = line;
+  char *q = line;
+
+  *pin = *value = -1;
+
+  while (isdigit(*p) || isspace(*p))
+    p++;
+
+  if (*p == '=')
+    *p = '\0';
+  else
+    return;
+
+  p++;
+  q = p;
+
+  while (isdigit(*p) || isspace(*p))
+    p++;
+
+  if (*p != '\0')
+    return;
+
+  *pin = atoi(line);
+  *value = atoi(q);
+}
+
+void
+setpindirs(char *in, Fcall *ofcall) {
+  char *line = strtok(in, "\n");
+  unsigned char pin, val;
+
+  while (line != NULL) {
+    readpinvalue(line, &pin, &val);
+
+    if (pin < 2 || pin > 19 || val < 0 || val > 1) {
+      ofcall->type = RError;
+      ofcall->ename = strdup("format is pin=val: pin is 2-19 and val is 0 or 1");
+
+      return;
+    }
+
+    pinMode(pin, val);
+
+    line = strtok(NULL, "\n");
+  }
+}
+
+void
+setpinvals(char *in, Fcall *ofcall) {
+  char *line = strtok(in, "\n");
+  unsigned char pin, val;
+  char tmpstr[64];
+
+  while (line != NULL) {
+    readpinvalue(line, &pin, &val);
+
+    if (pin < 2 || pin > 19 || val < 0 || val > 255) {
+      ofcall->type = RError;
+      ofcall->ename = strdup("format is pin=val: pin is 2-19 and val is 0, 1, or 0-255 for analog");
+
+      return;
+    }
+
+    if (pin == 3 || pin == 5 || pin == 6 || (pin >= 9 && pin <= 11)) {
+      if (val > 1)
+        analogWrite(pin, val);
+      else
+        digitalWrite(pin, val);
+    }
+    else if (val < 2) {
+      digitalWrite(pin, val);
+    }
+    else {
+      sprintf(tmpstr, "pin %d does not support analog writes", pin);
+      ofcall->type = RError;
+      ofcall->ename = strdup(tmpstr);
+
+      return;
+    }
+
+    line = strtok(NULL, "\n");
+  }
+}
+
+Fcall*
+fs_write(Fcall *ifcall, unsigned char *in) {
+  Fcall *ofcall = (Fcall*)calloc(1, sizeof(Fcall));
+  struct hentry *cur = fs_fid_find(ifcall->fid);
+  char tmpstr[32];
+
+  ofcall->count = ifcall->count;
+
+  if (cur == NULL) {
+    ofcall->type = RError;
+    ofcall->ename = strdup("invalid fid");
+  }
+  else if (((unsigned long)cur->data) == Qroot) {
+    ofcall->type = RError;
+    ofcall->ename = strdup("is a directory");
+  }
+  else if (((unsigned long)cur->data) == Qdata) {
+    setpinvals((char*)in, ofcall);
+  } 
+  else if (((unsigned long)cur->data) == Qctl) {
+    setpindirs((char*)in, ofcall);
+  }
+  else {
+    snprintf(tmpstr, sizeof(tmpstr), "unknown path: %x\n", (unsigned int)cur->data);
+    ofcall->type = RError;
+    ofcall->ename = strdup(tmpstr);
+  }
 
   return ofcall;
 }

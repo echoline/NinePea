@@ -146,7 +146,7 @@ typedef struct {
 		};
 		struct { /* Ropen, Rcreate */
 			Qid	qid; /* +Rattach */
-			unsigned long	iounit;
+//			unsigned long	iounit;
 		};
 		struct { /* Rauth */
 			Qid	aqid;
@@ -173,7 +173,7 @@ typedef struct {
 		struct {
 			unsigned long	offset; /* Tread, Twrite */
 			unsigned long	count; /* Tread, Twrite, Rread */
-			char	*data; /* Twrite, Rread */
+//			char	*data; /* Twrite, Rread */
 		};
 		struct { /* Rstat */
 			unsigned int	nstat;
@@ -193,8 +193,8 @@ typedef struct {
 	Fcall* (*walk)(Fcall*);
 	Fcall* (*open)(Fcall*);
 	Fcall* (*create)(Fcall*);
-	Fcall* (*read)(Fcall*, unsigned char*, unsigned int);
-	Fcall* (*write)(Fcall*);
+	Fcall* (*read)(Fcall*, unsigned char*);
+	Fcall* (*write)(Fcall*, unsigned char*);
 	Fcall* (*clunk)(Fcall*);
 	Fcall* (*remove)(Fcall*);
 	Fcall* (*stat)(Fcall*);

@@ -242,7 +242,7 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb, unsigned char *str
 		str[index++] = ofcall->qid.type;
 		put4(str, index, ofcall->qid.version);
 		put8(str, index, ofcall->qid.path, 0);
-		put4(str, index, ofcall->iounit);
+		put4(str, index, MAX_IO);
 
 		break;
 	case TRead:
@@ -251,12 +251,17 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb, unsigned char *str
 		index += 4; // :(
 		get4(msg, index, ifcall->count);
 
-		ofcall = cb->read(ifcall, &str[11], sizeof(str) - 11);
+		ofcall = cb->read(ifcall, &str[11]);
 
 		if (ofcall->type == RError) {
 			index = mkerr(str, ifcall->tag, ofcall->ename);
 			free(ofcall->ename);
 
+			goto END;
+		}
+
+		if (ofcall->count > MAX_IO) {
+			index = mkerr(str, ifcall->tag, "message length overrun");
 			goto END;
 		}
 
@@ -290,7 +295,7 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb, unsigned char *str
 		str[index++] = ofcall->qid.type;
 		put4(str, index, ofcall->qid.version);
 		put8(str, index, ofcall->qid.path, 0);
-		put4(str, index, ofcall->iounit);
+		put4(str, index, MAX_IO);
 
 		break;
 	case TWrite:
@@ -299,19 +304,13 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb, unsigned char *str
 		index += 4; // bleh... again
 		get4(msg, index, ifcall->count);
 
-		if (ifcall->count > (MAX_MSG - 23)) {
+		if (ifcall->count > MAX_IO) {
 			index = mkerr(str, ifcall->tag, "message length overrun");
 			goto END;
 		}
 
-		ifcall->data = (char*)malloc(ifcall->count+1);
-		ifcall->data[ifcall->count] = '\0';
-		memcpy(ifcall->data, &msg[index], ifcall->count);
-		index += ifcall->count;
-
-		ofcall = cb->write(ifcall);
-
-		free(ifcall->data);
+		msg[index + ifcall->count] = '\0';
+		ofcall = cb->write(ifcall, &msg[index]);
 
 		if (ofcall->type == RError) {
 			index = mkerr(str, ifcall->tag, ofcall->ename);
@@ -364,7 +363,7 @@ END:
 		free(ofcall);
 
 	if (index > MAX_MSG)
-		index = mkerr(str, ifcall->tag, "resulting message too big");
+		index = mkerr(str, ifcall->tag, "resulting message length overrun");
 
 	free(ifcall);
 

@@ -38,7 +38,7 @@ fs_stat(Fcall *ifcall) {
   ofcall->stat.atime = 0;
   ofcall->stat.mtime = 0;
   ofcall->stat.length = 0;
-  ofcall->stat.name = strdup("niluino");
+  ofcall->stat.name = strdup("/");
   ofcall->stat.uid = strdup("none");
   ofcall->stat.gid = strdup("none");
   ofcall->stat.muid = strdup("none");
@@ -56,14 +56,13 @@ fs_open(Fcall *ifcall) {
   Fcall *ofcall;
 
   ofcall = (Fcall*)calloc(1, sizeof(Fcall));
-  ofcall->iounit = 64;
   ofcall->qid.type = QTDIR | QTTMP;
 
   return ofcall;
 }
 
 Fcall*
-fs_read(Fcall *ifcall, unsigned char *out, unsigned int outlen) {
+fs_read(Fcall *ifcall, unsigned char *out) {
   Fcall *ofcall = (Fcall*)calloc(1, sizeof(Fcall));
 
   ofcall->count = 0;
@@ -83,7 +82,7 @@ fs_create(Fcall *ifcall) {
 }
 
 Fcall*
-fs_write(Fcall *ifcall) {
+fs_write(Fcall *ifcall, unsigned char *in) {
   Fcall *ofcall = (Fcall*)calloc(1, sizeof(Fcall));
 
   ofcall->type = RError;
