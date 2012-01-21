@@ -9,12 +9,20 @@
 	buffer[index++] = (value >> 8) & 0xFF; \
 
 #define put4(buffer, index, value) \
-	put2(buffer, index, value) \
-	put2(buffer, index, value >> 16) \
+	buffer[index++] = value & 0xFF; \
+	buffer[index++] = (value >> 8) & 0xFF; \
+	buffer[index++] = (value >> 16) & 0xFF; \
+	buffer[index++] = (value >> 24) & 0xFF; \
 
 #define put8(buffer, index, lvalue, hvalue) \
-	put4(buffer, index, lvalue) \
-	put4(buffer, index, hvalue) \
+	buffer[index++] = lvalue & 0xFF; \
+	buffer[index++] = (lvalue >> 8) & 0xFF; \
+	buffer[index++] = (lvalue >> 16) & 0xFF; \
+	buffer[index++] = (lvalue >> 24) & 0xFF; \
+	buffer[index++] = hvalue & 0xFF; \
+	buffer[index++] = (hvalue >> 8) & 0xFF; \
+	buffer[index++] = (hvalue >> 16) & 0xFF; \
+	buffer[index++] = (hvalue >> 24) & 0xFF; \
 
 #define get4(buffer, index, value) \
 	value = buffer[index++]; \
@@ -26,7 +34,9 @@
 	value = buffer[index++]; \
 	value |= buffer[index++] << 8; \
 
+// might have to change these depending on memory allocated
 #define MAX_MSG 256
+#define MAX_IO 224
 #define MAX_WELEM 16
 #define NOTAG ~0
 
@@ -183,7 +193,7 @@ typedef struct {
 	Fcall* (*walk)(Fcall*);
 	Fcall* (*open)(Fcall*);
 	Fcall* (*create)(Fcall*);
-	Fcall* (*read)(Fcall*);
+	Fcall* (*read)(Fcall*, unsigned char*, unsigned int);
 	Fcall* (*write)(Fcall*);
 	Fcall* (*clunk)(Fcall*);
 	Fcall* (*remove)(Fcall*);

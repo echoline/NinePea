@@ -63,11 +63,11 @@ fs_open(Fcall *ifcall) {
 }
 
 Fcall*
-fs_read(Fcall *ifcall) {
+fs_read(Fcall *ifcall, unsigned char *out, unsigned int outlen) {
   Fcall *ofcall = (Fcall*)calloc(1, sizeof(Fcall));
 
   ofcall->count = 0;
-  ofcall->data = strdup("");
+  out[0] = '\0';
     
   return ofcall;
 }
@@ -137,51 +137,49 @@ void setup() {
   callbacks.stat = fs_stat;
 }
 
-unsigned long len = 0;
+unsigned int len = 0;
 unsigned char msg[MAX_MSG+1];
-unsigned long msglen = 0;
-unsigned char out[MAX_MSG+1];
+unsigned int msglen = 0;
+unsigned char *out;
 
 void loop() {
-  unsigned long i;
-  
-  digitalWrite(13, LOW);  
-  
+  unsigned int i;
+
   while (Serial.available()) {
     msg[len++] = Serial.read();
-      
+
     if (len == msglen)
       break;
-      
+
     if (len >= MAX_MSG) {
-	die(1);
+      die(1);
     }
   }
- 
+
   if (len < msglen || len < 4)
     return;
-    
+
   if (msglen == 0) {
     i = 0;
     get4(msg, i, msglen);
-    
+
     if (msglen > MAX_MSG) {
-	die(3);
+      die(3);
     }
-    
+
     return;
   }
 
   if (len == msglen) {
      msglen = proc9p(msg, msglen, &callbacks, out);
 
-     for (; i < msglen; i++)
+     for (i = 0; i < msglen; i++)
        Serial.write(out[i]);
      
      len = msglen = 0;
      
      return;
   }
-  
+
   die(5);
 }

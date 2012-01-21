@@ -251,7 +251,7 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb, unsigned char *str
 		index += 4; // :(
 		get4(msg, index, ifcall->count);
 
-		ofcall = cb->read(ifcall);
+		ofcall = cb->read(ifcall, &str[11], sizeof(str) - 11);
 
 		if (ofcall->type == RError) {
 			index = mkerr(str, ifcall->tag, ofcall->ename);
@@ -262,8 +262,6 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb, unsigned char *str
 
 		index = puthdr(str, 0, RRead, ifcall->tag, 11 + ofcall->count);
 		put4(str, index, ofcall->count);
-		memcpy(&str[index], ofcall->data, ofcall->count);
-		free(ofcall->data);
 		index += ofcall->count;
 
 		break;
@@ -364,10 +362,11 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb, unsigned char *str
 END:
 	if (ofcall && (ofcall != ifcall))
 		free(ofcall);
-	free(ifcall);
 
 	if (index > MAX_MSG)
 		index = mkerr(str, ifcall->tag, "resulting message too big");
+
+	free(ifcall);
 
 	return index;
 }

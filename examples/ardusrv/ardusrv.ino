@@ -1,6 +1,6 @@
 #include <NinePea.h>
 
-/* valid paths */
+/* paths */
 
 enum {
   Qroot = 0,
@@ -9,7 +9,7 @@ enum {
   QNUM,
 };
 
-/* for keeping track of fid mappings */
+/* fid mapping functions */
 
 struct hentry {
   unsigned long id;
@@ -53,11 +53,12 @@ fs_fid_add(unsigned long id, unsigned long data) {
     cur->id = id;
     cur->data = data;
     h = hashf(fs_fids, id);
-    cur->next = fs_fids->data[h];
-    fs_fids->data[h] = cur;
-
-    if (cur->next)
+    
+    if (fs_fids->data[h]) {
+      cur->next = fs_fids->data[h];
       cur->next->prev = cur;
+    }
+    fs_fids->data[h] = cur;
 
     return NULL;
   }
@@ -198,9 +199,7 @@ fs_stat(Fcall *ifcall) {
 
   ofcall->stat.qid.type = QTTMP;
   ofcall->stat.mode = 0666 | DMTMP;
-  ofcall->stat.atime = 0;
-  ofcall->stat.mtime = 0;
-  ofcall->stat.length = 0;
+  ofcall->stat.atime = ofcall->stat.mtime = ofcall->stat.length = 0;
   ofcall->stat.uid = strdup("none");
   ofcall->stat.gid = strdup("none");
   ofcall->stat.muid = strdup("none");
@@ -209,13 +208,13 @@ fs_stat(Fcall *ifcall) {
   case Qroot:
     ofcall->stat.qid.type |= QTDIR;
     ofcall->stat.mode |= 0111 | DMDIR;
-    ofcall->stat.name = strdup("");
+    ofcall->stat.name = strdup("arduino/");
     break;
   case Qctl:
-    ofcall->stat.name = strdup("arductl");
+    ofcall->stat.name = strdup("arduino/arductl");
     break;
   case Qdata:
-    ofcall->stat.name = strdup("ardudata");
+    ofcall->stat.name = strdup("arduino/ardudata");
     break;
   }
 
@@ -242,7 +241,7 @@ fs_open(Fcall *ifcall) {
   }
 
   ofcall = (Fcall*)calloc(1, sizeof(Fcall));
-  ofcall->iounit = MAX_MSG - 24; // or so
+  ofcall->iounit = MAX_IO; // or so
   ofcall->qid.type = QTTMP;
 
   if (cur->data == Qroot)
@@ -252,26 +251,51 @@ fs_open(Fcall *ifcall) {
 }
 
 Fcall*
-fs_read(Fcall *ifcall) {
+fs_read(Fcall *ifcall, unsigned char *out, unsigned int outlen) {
   Fcall *ofcall = (Fcall*)calloc(1, sizeof(Fcall));
   struct hentry *cur = fs_fid_find(ifcall->fid);
   Stat stat;
   char tmpstr[32];
-  unsigned long i;
-  unsigned int value;
+  unsigned char i;
+  unsigned long value;
 
   if (cur == NULL) {
     ofcall->type = RError;
     ofcall->ename = strdup("file not found");
   }
+  else if (((unsigned long)cur->data) == Qdata) {
+    snprintf((char*)out, outlen - 1, "digital pins:\n");
+
+    for (i = 2; i < 14; i++) {
+      if (digitalRead(i))
+        snprintf(tmpstr, sizeof(tmpstr), "\t%d:\tHIGH\n", i);
+      else
+        snprintf(tmpstr, sizeof(tmpstr), "\t%d:\t LOW\n", i);
+
+      strlcat((char*)out, tmpstr, outlen);
+    }
+
+    snprintf(tmpstr, sizeof(tmpstr), "analog pins:\n");
+    strlcat((char*)out, tmpstr, outlen);
+
+    for (i = A0; i <= A5; i++) {
+      value = analogRead(i - A0);
+      snprintf(tmpstr, sizeof(tmpstr), "\t%d:\t%04d\n", i, value);
+      strlcat((char*)out, tmpstr, outlen);
+    }
+
+    ofcall->count = strlen((char*)out) - ifcall->offset;
+    if (ofcall->count > ifcall->count)
+      ofcall->count = ifcall->count;
+    if (ifcall->offset != 0)
+      memmove(out, &out[ifcall->offset], ofcall->count);
+  } 
   // offset?  too hard, sorry
   else if (ifcall->offset != 0) {
-    ofcall->data = strdup("");
+    out[0] = '\0';
     ofcall->count = 0;
   }
   else if (((unsigned long)cur->data) == Qroot) {
-    ofcall->data = (char*)malloc(MAX_MSG - 23);
-
     stat.type = 0;
     stat.dev = 0;
     stat.qid.type = QTTMP;
@@ -285,45 +309,24 @@ fs_read(Fcall *ifcall) {
     stat.uid = strdup("none");
     stat.gid = strdup("none");
     stat.muid = strdup("none");
-    ofcall->count = putstat((unsigned char*)ofcall->data, 0, &stat);
+    ofcall->count = putstat(out, 0, &stat);
 
     stat.qid.path = Qctl;
     stat.name = strdup("arductl");
     stat.uid = strdup("none");
     stat.gid = strdup("none");
     stat.muid = strdup("none");
-    ofcall->count += putstat((unsigned char*)ofcall->data, ofcall->count, &stat);
-
-  } 
-  else if (((unsigned long)cur->data) == Qdata) {
-    ofcall->data = (char*)malloc(MAX_MSG - 23);
-    snprintf((char*)ofcall->data, MAX_MSG - 24, "digital pins:\n");
-
-    for (i = 2; i < 14; i++) {
-      if (digitalRead(i))
-        snprintf(tmpstr, sizeof(tmpstr), "\t%d:\tHIGH\n", i);
-      else
-        snprintf(tmpstr, sizeof(tmpstr), "\t%d:\t LOW\n", i);
-
-      strlcat((char*)ofcall->data, tmpstr, MAX_MSG - 23);
-    }
-
-    snprintf(tmpstr, sizeof(tmpstr), "analog pins:\n");
-    strlcat((char*)ofcall->data, tmpstr, MAX_MSG - 23);
-
-    for (i = A0; i <= A5; i++) {
-      value = analogRead(i);
-      snprintf(tmpstr, sizeof(tmpstr), "\t%d:\t%04d\n", i, value);
-      strlcat((char*)ofcall->data, tmpstr, MAX_MSG - 23);
-    }
-
-    ofcall->count = strlen((char*)ofcall->data) - ifcall->offset;
-    if (ofcall->count > ifcall->count)
-      ofcall->count = ifcall->count;
-  } 
+    
+    ofcall->count += putstat(out, ofcall->count, &stat);
+  }
   else if (((unsigned long)cur->data) == Qctl) {
     ofcall->type = RError;
     ofcall->ename = strdup("ctl file read does nothing...");
+  }
+  else {
+    snprintf(tmpstr, sizeof(tmpstr), "unknown path: %x\n", (unsigned int)cur->data);
+    ofcall->type = RError;
+    ofcall->ename = strdup(tmpstr);
   }
 
   return ofcall;
@@ -368,8 +371,7 @@ Callbacks callbacks;
 
 /* arduino stuff */
 
-void
-die(unsigned char code) {
+void die(unsigned char code) {
   pinMode(13, OUTPUT);	
 
   while(true) {
@@ -387,6 +389,7 @@ void setup() {
   fs_fids->length = 16;
   fs_fids->data = (hentry**)calloc(fs_fids->length, sizeof(hentry*));
 
+  // this is REQUIRED by proc9p (see below)
   callbacks.version = fs_version;
   callbacks.attach = fs_attach;
   callbacks.flush = fs_flush;
@@ -398,19 +401,15 @@ void setup() {
   callbacks.clunk = fs_clunk;
   callbacks.remove = fs_remove;
   callbacks.stat = fs_stat;
-
-  for (int i = A0; i <= A5; i++) {
-    pinMode(i, INPUT);
-  }
 }
 
-unsigned long len = 0;
+unsigned int len = 0;
 unsigned char msg[MAX_MSG+1];
-unsigned long msglen = 0;
+unsigned int msglen = 0;
 unsigned char out[MAX_MSG+1];
 
 void loop() {
-  unsigned long i;
+  unsigned int i;
 
   while (Serial.available()) {
     msg[len++] = Serial.read();
@@ -418,9 +417,8 @@ void loop() {
     if (len == msglen)
       break;
 
-    if (len >= MAX_MSG) {
+    if (len >= MAX_MSG)
       die(1);
-    }
   }
 
   if (len < msglen || len < 4)
@@ -430,22 +428,24 @@ void loop() {
     i = 0;
     get4(msg, i, msglen);
 
-    if (msglen > MAX_MSG) {
+    if (msglen > MAX_MSG)
       die(3);
-    }
 
     return;
   }
 
   if (len == msglen) {
-     msglen = proc9p(msg, msglen, &callbacks, out);
-
-     for (i = 0; i < msglen; i++)
-       Serial.write(out[i]);
+    // proc9p accepts valid 9P msgs of length msglen,
+    // processes them using callbacks->various(functions);
+    // returns variable out's msglen
+    msglen = proc9p(msg, msglen, &callbacks, out);
+    
+    for (i = 0; i < msglen; i++)
+      Serial.write(out[i]);
      
-     len = msglen = 0;
+    len = msglen = 0;
      
-     return;
+    return;
   }
 
   die(5);
