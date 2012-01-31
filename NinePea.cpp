@@ -1,7 +1,10 @@
 #include "NinePea.h"
+#include <avr/pgmspace.h>
+
+char pgmbuf[MAX_PGMBUF];
 
 int
-puthdr(unsigned char *buf, int index, unsigned char type, unsigned int tag, unsigned long size) {
+puthdr(unsigned char *buf, unsigned long index, unsigned char type, unsigned int tag, unsigned long size) {
 	put4(buf, index, size);
 	buf[index++] = type;
 	put2(buf, index, tag);
@@ -10,7 +13,7 @@ puthdr(unsigned char *buf, int index, unsigned char type, unsigned int tag, unsi
 }
 
 int
-mkerr(unsigned char *buffer, unsigned int tag, char *errstr) {
+mkerr(unsigned char *buffer, unsigned char tag, char *errstr) {
 	int index;
 	int slen = strlen(errstr);
 	int size = slen + 9;
@@ -24,7 +27,7 @@ mkerr(unsigned char *buffer, unsigned int tag, char *errstr) {
 }
 
 int
-putstat(unsigned char *buffer, int index, Stat *stat) {
+putstat(unsigned char *buffer, unsigned long index, Stat *stat) {
 	unsigned int namelen = strlen(stat->name);
 	unsigned int uidlen = strlen(stat->uid);
 	unsigned int gidlen = strlen(stat->gid);
@@ -46,326 +49,283 @@ putstat(unsigned char *buffer, int index, Stat *stat) {
 	put2(buffer, index, namelen);
 	memcpy(&buffer[index], stat->name, namelen);
 	index += namelen;
-	free(stat->name);
 
 	put2(buffer, index, uidlen);
 	memcpy(&buffer[index], stat->uid, uidlen);
 	index += uidlen;
-	free(stat->uid);
 
 	put2(buffer, index, gidlen);
 	memcpy(&buffer[index], stat->gid, gidlen);
 	index += gidlen;
-	free(stat->gid);
 
 	put2(buffer, index, muidlen);
 	memcpy(&buffer[index], stat->muid, muidlen);
 	index += muidlen;
-	free(stat->muid);
 
-	return size + 2;
+	return (size + 2);
 }
 
-unsigned int
-proc9p(unsigned char *msg, unsigned long size, Callbacks *cb, unsigned char *str) {
-	Fcall *ifcall = (Fcall*)calloc(1, sizeof(Fcall));
+prog_char Etoobig[] PROGMEM = "message too big";
+prog_char Ebadtype[] PROGMEM = "unknown message type";
+
+unsigned long
+proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
+	Fcall ifcall;
 	Fcall *ofcall = NULL;
-	unsigned int slen, index = 4;
+	unsigned long slen;
+	unsigned long index;
 	unsigned char i;
 
-	ifcall->type = msg[index++];
-	get2(msg, index, ifcall->tag);
+	index = 4;
+	ifcall.type = msg[index++];
+	get2(msg, index, ifcall.tag);
 
 	if (size > MAX_MSG) {
-		index = mkerr(str, ifcall->tag, "message too big");
+		strcpy_P(pgmbuf, Etoobig);
+		index = mkerr(msg, ifcall.tag, pgmbuf);
 		goto END;
 	}
 
 	// if it isn't here, it isn't implemented
-	switch(ifcall->type) {
+	switch(ifcall.type) {
 	case TVersion:
-		get4(msg, index, ifcall->msize);
-		get2(msg, index, slen);
-
-		ifcall->version = (char*)malloc(slen+1);
-		ifcall->version[slen] = '\0';
-		memcpy(ifcall->version, &msg[index], slen);
-
-		if (ifcall->msize > MAX_MSG)
-			ifcall->msize = MAX_MSG;
-
-		ofcall = cb->version(ifcall);
-
-		if (ofcall->type == RError) {
-			index = mkerr(str, ifcall->tag, ofcall->ename);
-			free(ofcall->ename);
-
-			goto END;
-		}
-
+		i = index;
 		index = 7;
-		slen = strlen(ofcall->version);
-		
-		put4(str, index, ofcall->msize);
-		put2(str, index, slen);
-		memcpy(&str[index], ofcall->version, slen);
+
+		get4(msg, i, ifcall.msize);
+		get2(msg, i, slen);
+
+		if (ifcall.msize > MAX_MSG)
+			ifcall.msize = MAX_MSG;
+
+		put4(msg, index, ifcall.msize);
+		put2(msg, index, slen);
+
 		index += slen;
+		puthdr(msg, 0, RVersion, ifcall.tag, index);
 
-		puthdr(str, 0, RVersion, ifcall->tag, index);
-
-		free(ofcall->version);
 		break;
-
 	case TAttach:
-		get4(msg, index, ifcall->fid);
-		get4(msg, index, ifcall->afid);
+		get4(msg, index, ifcall.fid);
+		get4(msg, index, ifcall.afid);
 
 		get2(msg, index, slen);
-		ifcall->uname = (char*)malloc(slen+1);
-		memcpy(ifcall->uname, &msg[index], slen);
+		ifcall.uname = (char*)&msg[index];
 		index += slen;
 
 		get2(msg, index, slen);
-		ifcall->aname = (char*)malloc(slen+1);
-		memcpy(ifcall->aname, &msg[index], slen);
+		msg[index-2] = '\0';
+
+		ifcall.aname = (char*)&msg[index];
 		index += slen;
+		msg[index-2] = '\0';
 
-		ofcall = cb->attach(ifcall);
-
-		free(ifcall->uname);
-		free(ifcall->aname);
+		ofcall = cb->attach(&ifcall);
 
 		if (ofcall->type == RError) {
-			index = mkerr(str, ifcall->tag, ofcall->ename);
-			free(ofcall->ename);
+			index = mkerr(msg, ifcall.tag, ofcall->ename);
 
 			goto END;
 		}
 
 		index = 7;
-		str[index++] = ofcall->qid.type;
-		put4(str, index, ofcall->qid.version);
-		put8(str, index, ofcall->qid.path, 0);
-		puthdr(str, 0, RAttach, ifcall->tag, index);
+		msg[index++] = ofcall->qid.type;
+		put4(msg, index, ofcall->qid.version);
+		put8(msg, index, ofcall->qid.path, 0);
+		puthdr(msg, 0, RAttach, ifcall.tag, index);
 
 		break;
 	case TWalk:
-		get4(msg, index, ifcall->fid);
-		get4(msg, index, ifcall->newfid);
-		get2(msg, index, ifcall->nwname);
+		get4(msg, index, ifcall.fid);
+		get4(msg, index, ifcall.newfid);
+		get2(msg, index, ifcall.nwname);
 
-		if (ifcall->nwname > MAX_WELEM)
-			ifcall->nwname = MAX_WELEM;
+		if (ifcall.nwname > MAX_WELEM)
+			ifcall.nwname = MAX_WELEM;
 
-		i = 0;
-		while (i < ifcall->nwname) {
+		for (i = 0; i < ifcall.nwname; i++) {
 			get2(msg, index, slen);
-			ifcall->wname[i] = (char*)malloc(slen+1);
-			memcpy(ifcall->wname[i], &msg[index], slen);
-			ifcall->wname[i][slen] = '\0';
+			msg[index-2] = '\0';
+			ifcall.wname[i] = (char*)&msg[index];
 			index += slen;
-			i++;
 		}
+		msg[index] = '\0';
 
-		ofcall = cb->walk(ifcall);
-	
-		for (index = 0; index < ifcall->nwname; index++)
-			free(ifcall->wname[index]);
+		ofcall = cb->walk(&ifcall);
 
 		if (ofcall->type == RError) {
-			index = mkerr(str, ifcall->tag, ofcall->ename);
-			free(ofcall->ename);
+			index = mkerr(msg, ifcall.tag, ofcall->ename);
 
 			goto END;
 		}
 
-		index = puthdr(str, 0, RWalk, ifcall->tag, 9 + ofcall->nwqid * 13);
-		put2(str, index, ofcall->nwqid);
+		index = puthdr(msg, 0, RWalk, ifcall.tag, 9 + ofcall->nwqid * 13);
+		put2(msg, index, ofcall->nwqid);
 
-		i = 0;
-		while (i < ofcall->nwqid) {
-			str[index++] = ofcall->wqid[i].type;
-			put4(str, index, ofcall->wqid[i].version);
-			put8(str, index, ofcall->wqid[i].path, 0);
-
-			i++;
+		for (i = 0; i < ofcall->nwqid; i++) {
+			msg[index++] = ofcall->wqid[i].type;
+			put4(msg, index, ofcall->wqid[i].version);
+			put8(msg, index, ofcall->wqid[i].path, 0);
 		}
 
 		break;
 	case TStat:
-		get4(msg, index, ifcall->fid);
+		get4(msg, index, ifcall.fid);
 
-		ofcall = cb->stat(ifcall);
+		ofcall = cb->stat(&ifcall);
 
 		if (ofcall->type == RError) {
-			index = mkerr(str, ifcall->tag, ofcall->ename);
-			free(ofcall->ename);
+			index = mkerr(msg, ifcall.tag, ofcall->ename);
 
 			goto END;
 		}
 
-		slen = putstat(str, 9, &(ofcall->stat));
-		index = puthdr(str, 0, RStat, ifcall->tag, slen + 9);
-		put2(str, index, slen);	// bleh?
+		slen = putstat(msg, 9, &(ofcall->stat));
+		index = puthdr(msg, 0, RStat, ifcall.tag, slen + 9);
+		put2(msg, index, slen);	// bleh?
 		index += slen;
 
 		break;
 	case TClunk:
-		get4(msg, index, ifcall->fid);
+		get4(msg, index, ifcall.fid);
 
-		ofcall = cb->clunk(ifcall);
+		ofcall = cb->clunk(&ifcall);
 
 		if (ofcall->type == RError) {
-			index = mkerr(str, ifcall->tag, ofcall->ename);
-			free(ofcall->ename);
+			index = mkerr(msg, ifcall.tag, ofcall->ename);
 
 			goto END;
 		}
 
-		index = puthdr(str, 0, RClunk, ifcall->tag, 7);
-		
+		index = puthdr(msg, 0, RClunk, ifcall.tag, 7);
+
 		break;
 	case TOpen:
-		get4(msg, index, ifcall->fid);
-		ifcall->mode = msg[index++];
+		get4(msg, index, ifcall.fid);
+		ifcall.mode = msg[index++];
 
-		ofcall = cb->open(ifcall);
+		ofcall = cb->open(&ifcall);
 
 		if (ofcall->type == RError) {
-			index = mkerr(str, ifcall->tag, ofcall->ename);
-			free(ofcall->ename);
+			index = mkerr(msg, ifcall.tag, ofcall->ename);
 
 			goto END;
 		}
 
-		index = puthdr(str, 0, ROpen, ifcall->tag, 24);
-		str[index++] = ofcall->qid.type;
-		put4(str, index, ofcall->qid.version);
-		put8(str, index, ofcall->qid.path, 0);
-		put4(str, index, MAX_IO);
+		index = puthdr(msg, 0, ROpen, ifcall.tag, 24);
+		msg[index++] = ofcall->qid.type;
+		put4(msg, index, ofcall->qid.version);
+		put8(msg, index, ofcall->qid.path, 0);
+		put4(msg, index, MAX_IO);
 
 		break;
 	case TRead:
-		get4(msg, index, ifcall->fid);
-		get4(msg, index, ifcall->offset);
+		get4(msg, index, ifcall.fid);
+		get4(msg, index, ifcall.offset);
 		index += 4; // :(
-		get4(msg, index, ifcall->count);
+		get4(msg, index, ifcall.count);
 
-		ofcall = cb->read(ifcall, &str[11]);
+		ofcall = cb->read(&ifcall, &msg[11]);
 
 		if (ofcall->type == RError) {
-			index = mkerr(str, ifcall->tag, ofcall->ename);
-			free(ofcall->ename);
+			index = mkerr(msg, ifcall.tag, ofcall->ename);
 
 			goto END;
 		}
 
-		if (ofcall->count > MAX_IO) {
-			index = mkerr(str, ifcall->tag, "message length overrun");
+		// No response
+		if (ofcall == NULL) {
+			index = 0;
+
 			goto END;
 		}
 
-		index = puthdr(str, 0, RRead, ifcall->tag, 11 + ofcall->count);
-		put4(str, index, ofcall->count);
+		index = puthdr(msg, 0, RRead, ifcall.tag, 11 + ofcall->count);
+		put4(msg, index, ofcall->count);
 		index += ofcall->count;
 
 		break;
 	case TCreate:
-		get4(msg, index, ifcall->fid);
+		get4(msg, index, ifcall.fid);
 		get2(msg, index, slen);
-		ifcall->name = (char*)malloc(slen+1);
-		ifcall->name[slen] = '\0';
-		memcpy(ifcall->name, &msg[index], slen);
+		ifcall.name = (char*)&msg[index];
 		index += slen;
-		get4(msg, index, ifcall->perm);
-		ifcall->mode = msg[index++];
+		get4(msg, index, ifcall.perm);
+		msg[index-4] = '\0';
+		ifcall.mode = msg[index++];
 
-		ofcall = cb->create(ifcall);
-
-		free(ifcall->name);
+		ofcall = cb->create(&ifcall);
 
 		if (ofcall->type == RError) {
-			index = mkerr(str, ifcall->tag, ofcall->ename);
-			free(ofcall->ename);
+			index = mkerr(msg, ifcall.tag, ofcall->ename);
 
 			goto END;
 		}
 
-		index = puthdr(str, 0, RCreate, ifcall->tag, 24);
-		str[index++] = ofcall->qid.type;
-		put4(str, index, ofcall->qid.version);
-		put8(str, index, ofcall->qid.path, 0);
-		put4(str, index, MAX_IO);
+		index = puthdr(msg, 0, RCreate, ifcall.tag, 24);
+		msg[index++] = ofcall->qid.type;
+		put4(msg, index, ofcall->qid.version);
+		put8(msg, index, ofcall->qid.path, 0);
+		put4(msg, index, MAX_IO);
 
 		break;
 	case TWrite:
-		get4(msg, index, ifcall->fid);
-		get4(msg, index, ifcall->offset);
+		get4(msg, index, ifcall.fid);
+		get4(msg, index, ifcall.offset);
 		index += 4; // bleh... again
-		get4(msg, index, ifcall->count);
+		get4(msg, index, ifcall.count);
 
-		if (ifcall->count > MAX_IO) {
-			index = mkerr(str, ifcall->tag, "message length overrun");
-			goto END;
-		}
-
-		msg[index + ifcall->count] = '\0';
-		ofcall = cb->write(ifcall, &msg[index]);
+		ofcall = cb->write(&ifcall, &msg[index]);
 
 		if (ofcall->type == RError) {
-			index = mkerr(str, ifcall->tag, ofcall->ename);
-			free(ofcall->ename);
+			index = mkerr(msg, ifcall.tag, ofcall->ename);
 
 			goto END;
 		}
 
-		index = puthdr(str, 0, RWrite, ifcall->tag, 11);
-		put4(str, index, ofcall->count);
+		index = puthdr(msg, 0, RWrite, ifcall.tag, 11);
+		put4(msg, index, ofcall->count);
 
 		break;
 	case TRemove:
-		get4(msg, index, ifcall->fid);
+		get4(msg, index, ifcall.fid);
 
-		ofcall = cb->remove(ifcall);
+		ofcall = cb->remove(&ifcall);
 
 		if (ofcall->type == RError) {
-			index = mkerr(str, ifcall->tag, ofcall->ename);
-			free(ofcall->ename);
+			index = mkerr(msg, ifcall.tag, ofcall->ename);
 
 			goto END;
 		}
 
-		index = puthdr(str, 0, RRemove, ifcall->tag, 7);
+		index = puthdr(msg, 0, RRemove, ifcall.tag, 7);
 		
 		break;
 	case TFlush:
-		get2(msg, index, ifcall->oldtag);
+		get2(msg, index, ifcall.oldtag);
 
-		ofcall = cb->flush(ifcall);
+		ofcall = cb->flush(&ifcall);
 
 		if (ofcall->type == RError) {
-			index = mkerr(str, ifcall->tag, ofcall->ename);
-			free(ofcall->ename);
+			index = mkerr(msg, ifcall.tag, ofcall->ename);
 
 			goto END;
 		}
 
-		index = puthdr(str, 0, RFlush, ifcall->tag, 7);
+		index = puthdr(msg, 0, RFlush, ifcall.tag, 7);
 
 		break;
 	default:
-		index = mkerr(str, ifcall->tag, "unknown message type");
+		strcpy_P(pgmbuf, Ebadtype);
+		index = mkerr(msg, ifcall.tag, pgmbuf);
 		break;
 	}
 
 END:
-	if (ofcall && (ofcall != ifcall))
-		free(ofcall);
-
-	if (index > MAX_MSG)
-		index = mkerr(str, ifcall->tag, "resulting message length overrun");
-
-	free(ifcall);
+	if (index > MAX_MSG) {
+		strcpy_P(pgmbuf, Etoobig);
+		index = mkerr(msg, ifcall.tag, pgmbuf);
+	}
 
 	return index;
 }

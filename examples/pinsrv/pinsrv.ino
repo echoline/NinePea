@@ -1,5 +1,12 @@
 #include <NinePea.h>
 
+Fcall ofcall;
+char errstr[64];
+char Snone[] = "none";
+char Sroot[] = "/";
+char Sctl[] = "arduinoctl";
+char Sdata[] = "arduino";
+
 /* paths */
 
 enum {
@@ -100,37 +107,27 @@ fs_fid_del(unsigned long id) {
 /* 9p handlers */
 
 Fcall*
-fs_version(Fcall *ifcall) {
-  if (ifcall->msize > MAX_MSG)
-    ifcall->msize = MAX_MSG;
-
-  return ifcall;
-}
-
-Fcall*
 fs_attach(Fcall *ifcall) {
-  Fcall *ofcall = (Fcall*)calloc(1, sizeof(Fcall));
-
-  ofcall->qid.type = QTDIR | QTTMP;
-  ofcall->qid.path = Qroot;
+  ofcall.qid.type = QTDIR | QTTMP;
+  ofcall.qid.path = Qroot;
 
   fs_fid_add(ifcall->fid, Qroot);
 
-  return ofcall;
+  return &ofcall;
 }
 
 Fcall*
 fs_walk(Fcall *ifcall) {
-  Fcall *ofcall = (Fcall*)calloc(1, sizeof(Fcall));
   unsigned long path;
   struct hentry *ent = fs_fid_find(ifcall->fid);
   int i;
 
   if (!ent) {
-    ofcall->type = RError;
-    ofcall->ename = strdup("file not found");
+    ofcall.type = RError;
+    strcpy(errstr, "file not found");
+    ofcall.ename = errstr;
 
-    return ofcall;
+    return &ofcall;
   }
 
   path = ent->data;
@@ -139,84 +136,86 @@ fs_walk(Fcall *ifcall) {
     switch(ent->data) {
     case Qroot:
       if (!strcmp(ifcall->wname[i], "arduinoctl")) {
-        ofcall->wqid[i].type = QTTMP;
-        ofcall->wqid[i].path = path = Qctl;
+        ofcall.wqid[i].type = QTTMP;
+        ofcall.wqid[i].path = path = Qctl;
       } 
       else if (!strcmp(ifcall->wname[i], "arduino")) {
-        ofcall->wqid[i].type = QTTMP;
-        ofcall->wqid[i].path = path = Qdata;
+        ofcall.wqid[i].type = QTTMP;
+        ofcall.wqid[i].path = path = Qdata;
       } 
       else if (!strcmp(ifcall->wname[i], ".")) {
-        ofcall->wqid[i].type = QTTMP | QTDIR;
-        ofcall->wqid[i].path = path = Qroot;
+        ofcall.wqid[i].type = QTTMP | QTDIR;
+        ofcall.wqid[i].path = path = Qroot;
       } 
       else {
-        ofcall->type = RError;
-        ofcall->ename = strdup("file not found");
+        ofcall.type = RError;
+        strcpy(errstr, "file not found");
+        ofcall.ename = errstr;
 
-        return ofcall;
+        return &ofcall;
       }
       break;
     case Qdata:
     case Qctl:
       if (!strcmp(ifcall->wname[i], "..")) {
-        ofcall->wqid[i].type = QTTMP | QTDIR;
-        ofcall->wqid[i].path = path = Qroot;
+        ofcall.wqid[i].type = QTTMP | QTDIR;
+        ofcall.wqid[i].path = path = Qroot;
       } 
       else {
-        ofcall->type = RError;
-        ofcall->ename = strdup("file not found");
+        ofcall.type = RError;
+        strcpy(errstr, "file not found");
+        ofcall.ename = errstr;
 
-        return ofcall;
+        return &ofcall;
       }
       break;
     }
   }
 
-  ofcall->nwqid = i;
+  ofcall.nwqid = i;
 
   fs_fid_add(ifcall->newfid, path);
 
-  return ofcall;
+  return &ofcall;
 }
 
 Fcall*
 fs_stat(Fcall *ifcall) {
-  Fcall *ofcall = (Fcall*)calloc(1, sizeof(Fcall));
   struct hentry *ent;
 
   if ((ent = fs_fid_find(ifcall->fid)) == NULL) {
-    ofcall->type = RError;
-    ofcall->ename = strdup("file not found");
+    ofcall.type = RError;
+    strcpy(errstr, "file not found");
+    ofcall.ename = errstr;
 
-    return ofcall;
+    return &ofcall;
   }
 
-  ofcall->stat.qid.type = QTTMP;
-  ofcall->stat.mode = 0666 | DMTMP;
-  ofcall->stat.atime = ofcall->stat.mtime = ofcall->stat.length = 0;
-  ofcall->stat.uid = strdup("none");
-  ofcall->stat.gid = strdup("none");
-  ofcall->stat.muid = strdup("none");
+  ofcall.stat.qid.type = QTTMP;
+  ofcall.stat.mode = 0666 | DMTMP;
+  ofcall.stat.atime = ofcall.stat.mtime = ofcall.stat.length = 0;
+  ofcall.stat.uid = Snone;
+  ofcall.stat.gid = Snone;
+  ofcall.stat.muid = Snone;
 
   switch (ent->data) {
   case Qroot:
-    ofcall->stat.qid.type |= QTDIR;
-    ofcall->stat.qid.path = Qroot;
-    ofcall->stat.mode |= 0111 | DMDIR;
-    ofcall->stat.name = strdup("/");
+    ofcall.stat.qid.type |= QTDIR;
+    ofcall.stat.qid.path = Qroot;
+    ofcall.stat.mode |= 0111 | DMDIR;
+    ofcall.stat.name = Sroot;
     break;
   case Qctl:
-    ofcall->stat.qid.path = Qctl;
-    ofcall->stat.name = strdup("arduinoctl");
+    ofcall.stat.qid.path = Qctl;
+    ofcall.stat.name = Sctl;
     break;
   case Qdata:
-    ofcall->stat.qid.path = Qdata;
-    ofcall->stat.name = strdup("arduino");
+    ofcall.stat.qid.path = Qdata;
+    ofcall.stat.name = Sdata;
     break;
   }
 
-  return ofcall;
+  return &ofcall;
 }
 
 Fcall*
@@ -228,29 +227,27 @@ fs_clunk(Fcall *ifcall) {
 
 Fcall*
 fs_open(Fcall *ifcall) {
-  Fcall *ofcall;
   struct hentry *cur = fs_fid_find(ifcall->fid);
 
   if (!cur) {
-    ofcall->type = RError;
-    ofcall->ename = strdup("file not found");
+    ofcall.type = RError;
+    strcpy(errstr, "file not found");
+    ofcall.ename = errstr;
 
-    return ofcall;
+    return &ofcall;
   }
 
-  ofcall = (Fcall*)calloc(1, sizeof(Fcall));
-  ofcall->qid.type = QTTMP;
-  ofcall->qid.path = cur->data;
+  ofcall.qid.type = QTTMP;
+  ofcall.qid.path = cur->data;
 
   if (cur->data == Qroot)
-    ofcall->qid.type |= QTDIR;
+    ofcall.qid.type |= QTDIR;
 
-  return ofcall;
+  return &ofcall;
 }
 
 Fcall*
 fs_read(Fcall *ifcall, unsigned char *out) {
-  Fcall *ofcall = (Fcall*)calloc(1, sizeof(Fcall));
   struct hentry *cur = fs_fid_find(ifcall->fid);
   Stat stat;
   char tmpstr[32];
@@ -258,8 +255,9 @@ fs_read(Fcall *ifcall, unsigned char *out) {
   unsigned long value;
 
   if (cur == NULL) {
-    ofcall->type = RError;
-    ofcall->ename = strdup("invalid fid");
+    ofcall.type = RError;
+    strcpy(errstr, "invalid fid");
+    ofcall.ename = errstr;
   }
   else if (((unsigned long)cur->data) == Qdata) {
     snprintf((char*)out, MAX_IO - 1, "digital pins:\n");
@@ -282,16 +280,16 @@ fs_read(Fcall *ifcall, unsigned char *out) {
       strlcat((char*)out, tmpstr, MAX_IO);
     }
 
-    ofcall->count = strlen((char*)out) - ifcall->offset;
-    if (ofcall->count > ifcall->count)
-      ofcall->count = ifcall->count;
+    ofcall.count = strlen((char*)out) - ifcall->offset;
+    if (ofcall.count > ifcall->count)
+      ofcall.count = ifcall->count;
     if (ifcall->offset != 0)
-      memmove(out, &out[ifcall->offset], ofcall->count);
+      memmove(out, &out[ifcall->offset], ofcall.count);
   } 
   // offset?  too hard, sorry
   else if (ifcall->offset != 0) {
     out[0] = '\0';
-    ofcall->count = 0;
+    ofcall.count = 0;
   }
   else if (((unsigned long)cur->data) == Qroot) {
     stat.type = 0;
@@ -302,41 +300,41 @@ fs_read(Fcall *ifcall, unsigned char *out) {
     stat.atime = 0;
     stat.mtime = 0;
     stat.length = 0;
-    stat.name = strdup("arduino");
-    stat.uid = strdup("none");
-    stat.gid = strdup("none");
-    stat.muid = strdup("none");
-    ofcall->count = putstat(out, 0, &stat);
+    stat.name = Sdata;
+    stat.uid = Snone;
+    stat.gid = Snone;
+    stat.muid = Snone;
+    ofcall.count = putstat(out, 0, &stat);
 
     stat.qid.path = Qctl;
-    stat.name = strdup("arduinoctl");
-    stat.uid = strdup("none");
-    stat.gid = strdup("none");
-    stat.muid = strdup("none");
+    stat.name = Sctl;
+    stat.uid = Snone;
+    stat.gid = Snone;
+    stat.muid = Snone;
     
-    ofcall->count += putstat(out, ofcall->count, &stat);
+    ofcall.count += putstat(out, ofcall.count, &stat);
   }
   else if (((unsigned long)cur->data) == Qctl) {
-    ofcall->type = RError;
-    ofcall->ename = strdup("ctl file read does nothing...");
+    ofcall.type = RError;
+    strcpy(errstr, "ctl file read does nothing...");
+    ofcall.ename = errstr;
   }
   else {
-    snprintf(tmpstr, sizeof(tmpstr), "unknown path: %x\n", (unsigned int)cur->data);
-    ofcall->type = RError;
-    ofcall->ename = strdup(tmpstr);
+    sprintf(errstr, "unknown path: %x\n", (unsigned int)cur->data);
+    ofcall.type = RError;
+    ofcall.ename = errstr;
   }
 
-  return ofcall;
+  return &ofcall;
 }
 
 Fcall*
 fs_create(Fcall *ifcall) {
-  Fcall *ofcall = (Fcall*)calloc(1, sizeof(Fcall));
+  ofcall.type = RError;
+  strcpy(errstr, "create not allowed");
+  ofcall.ename = errstr;
 
-  ofcall->type = RError;
-  ofcall->ename = strdup("create not allowed");
-
-  return ofcall;
+  return &ofcall;
 }
 
 /* interlude...? */
@@ -379,7 +377,8 @@ setpindirs(char *in, Fcall *ofcall) {
 
     if (pin < 2 || pin > 19 || val < 0 || val > 1) {
       ofcall->type = RError;
-      ofcall->ename = strdup("format is pin=val: pin is 2-19 and val is 0 or 1");
+      strcpy(errstr, "format is pin=val: pin is 2-19 and val is 0 or 1");
+      ofcall->ename = errstr;
 
       return;
     }
@@ -394,14 +393,14 @@ void
 setpinvals(char *in, Fcall *ofcall) {
   char *line = strtok(in, "\n");
   unsigned char pin, val;
-  char tmpstr[64];
 
   while (line != NULL) {
     readpinvalue(line, &pin, &val);
 
     if (pin < 2 || pin > 19 || val < 0 || val > 255) {
       ofcall->type = RError;
-      ofcall->ename = strdup("format is pin=val: pin is 2-19 and val is 0, 1, or 0-255 for analog");
+      strcpy(errstr, "format is pin=val: pin is 2-19 and val is 0, 1, or 0-255 for analog");
+      ofcall->ename = errstr;
 
       return;
     }
@@ -416,9 +415,9 @@ setpinvals(char *in, Fcall *ofcall) {
       digitalWrite(pin, val);
     }
     else {
-      sprintf(tmpstr, "pin %d does not support analog writes", pin);
+      sprintf(errstr, "pin %d does not support analog writes", pin);
       ofcall->type = RError;
-      ofcall->ename = strdup(tmpstr);
+      ofcall->ename = errstr;
 
       return;
     }
@@ -429,43 +428,42 @@ setpinvals(char *in, Fcall *ofcall) {
 
 Fcall*
 fs_write(Fcall *ifcall, unsigned char *in) {
-  Fcall *ofcall = (Fcall*)calloc(1, sizeof(Fcall));
   struct hentry *cur = fs_fid_find(ifcall->fid);
-  char tmpstr[32];
 
-  ofcall->count = ifcall->count;
+  ofcall.count = ifcall->count;
 
   if (cur == NULL) {
-    ofcall->type = RError;
-    ofcall->ename = strdup("invalid fid");
+    ofcall.type = RError;
+    strcpy(errstr, "invalid fid");
+    ofcall.ename = errstr;
   }
   else if (((unsigned long)cur->data) == Qroot) {
-    ofcall->type = RError;
-    ofcall->ename = strdup("is a directory");
+    ofcall.type = RError;
+    strcpy(errstr, "is a directory");
+    ofcall.ename = errstr;
   }
   else if (((unsigned long)cur->data) == Qdata) {
-    setpinvals((char*)in, ofcall);
+    setpinvals((char*)in, &ofcall);
   } 
   else if (((unsigned long)cur->data) == Qctl) {
-    setpindirs((char*)in, ofcall);
+    setpindirs((char*)in, &ofcall);
   }
   else {
-    snprintf(tmpstr, sizeof(tmpstr), "unknown path: %x\n", (unsigned int)cur->data);
-    ofcall->type = RError;
-    ofcall->ename = strdup(tmpstr);
+    sprintf(errstr, "unknown path: %x\n", (unsigned int)cur->data);
+    ofcall.type = RError;
+    ofcall.ename = errstr;
   }
 
-  return ofcall;
+  return &ofcall;
 }
 
 Fcall*
 fs_remove(Fcall *ifcall) {
-  Fcall *ofcall = (Fcall*)calloc(1, sizeof(Fcall));
+  ofcall.type = RError;
+  strcpy(errstr, "remove not allowed");
+  ofcall.ename = errstr;
 
-  ofcall->type = RError;
-  ofcall->ename = strdup("remove not allowed");
-
-  return ofcall;
+  return &ofcall;
 }
 
 Fcall*
@@ -489,14 +487,13 @@ void die(unsigned char code) {
 }
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(57600);
 
   fs_fids = (htable*)malloc(sizeof(htable));
   fs_fids->length = 16;
   fs_fids->data = (hentry**)calloc(fs_fids->length, sizeof(hentry*));
 
   // this is REQUIRED by proc9p (see below)
-  callbacks.version = fs_version;
   callbacks.attach = fs_attach;
   callbacks.flush = fs_flush;
   callbacks.walk = fs_walk;
@@ -509,50 +506,61 @@ void setup() {
   callbacks.stat = fs_stat;
 }
 
-unsigned int len = 0;
 unsigned char msg[MAX_MSG+1];
 unsigned int msglen = 0;
-unsigned char out[MAX_MSG+1];
+unsigned int read = 0;
+unsigned int lastread = 0;
 
 void loop() {
-  unsigned int i;
+  unsigned long i;
 
   while (Serial.available()) {
-    msg[len++] = Serial.read();
+    msg[read++] = Serial.read();
 
-    if (len == msglen)
+    lastread = millis();
+
+    if (read == msglen)
       break;
-
-    if (len >= MAX_MSG)
-      die(1);
   }
 
-  if (len < msglen || len < 4)
+  // timeout
+  if (lastread != 0 && (millis() - lastread) > 1000)
+    read = msglen = lastread = 0;
+
+  if (read < msglen || read < 5)
     return;
 
   if (msglen == 0) {
     i = 0;
     get4(msg, i, msglen);
 
-    if (msglen > MAX_MSG)
-      die(3);
+    // sanity check
+    if (msg[i] & 1 ||
+	msglen > MAX_MSG ||
+	msg[i] < TVersion ||
+      msg[i] > TWStat) {
+      read = msglen = lastread = 0;
+    }
 
-    return;
+    if ((read != msglen) || (read == 0))
+      return;
   }
 
-  if (len == msglen) {
+  if (read == msglen) {
+    memset(&ofcall, 0, sizeof(ofcall));
+
     // proc9p accepts valid 9P msgs of length msglen,
     // processes them using callbacks->various(functions);
     // returns variable out's msglen
-    msglen = proc9p(msg, msglen, &callbacks, out);
-    
+    msglen = proc9p(msg, msglen, &callbacks);
+
     for (i = 0; i < msglen; i++)
-      Serial.write(out[i]);
-     
-    len = msglen = 0;
-     
+      Serial.write(msg[i]);
+
+    lastread = read = msglen = 0;
+
     return;
   }
 
-  die(5);
+  die(1);
 }

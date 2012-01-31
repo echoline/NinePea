@@ -35,10 +35,13 @@
 	value |= buffer[index++] << 8; \
 
 // might have to change these depending on memory allocated
-#define MAX_MSG 256
-#define MAX_IO 224
+#define MAX_IO 512	// blatant lie?
+#define MAX_MSG 544
 #define MAX_WELEM 16
+#define MAX_PGMBUF 80
 #define NOTAG ~0
+
+extern char pgmbuf[];
 
 /* 9P message types */
 enum {
@@ -122,21 +125,21 @@ typedef struct {
 	unsigned long	atime;
 	unsigned long	mtime;
 	unsigned long	length;
-	char*	name;
-	char*	uid;
-	char*	gid;
-	char*	muid;
+	char	*name;
+	char	*uid;
+	char	*gid;
+	char	*muid;
 } Stat;
 
 typedef struct {
 	unsigned char type;
-	unsigned int tag;
+	unsigned long tag;
 	unsigned long fid;
 
 	union {
 		struct {/* Tversion, Rversion */
 			unsigned long	msize;
-			char	*version;
+//			char	*version;
 		};
 		struct { /* Tflush */
 			unsigned int	oldtag;
@@ -176,7 +179,7 @@ typedef struct {
 //			char	*data; /* Twrite, Rread */
 		};
 		struct { /* Rstat */
-			unsigned int	nstat;
+			unsigned long	nstat;
 			Stat	stat;
 		};
 		struct { /* Twstat */
@@ -186,7 +189,7 @@ typedef struct {
 } Fcall;
 
 typedef struct {
-	Fcall* (*version)(Fcall*);
+//	Fcall* (*version)(Fcall*);
 //	Fcall* (*auth)(Fcall*);
 	Fcall* (*attach)(Fcall*);
 	Fcall* (*flush)(Fcall*);
@@ -200,7 +203,7 @@ typedef struct {
 	Fcall* (*stat)(Fcall*);
 } Callbacks;
 
-int putstat(unsigned char *buffer, int index, Stat *stat);
-unsigned int proc9p(unsigned char *msg, unsigned long size, Callbacks *cb, unsigned char *str);
+int putstat(unsigned char *buffer, unsigned long index, Stat *stat);
+unsigned long proc9p(unsigned char *msg, unsigned long size, Callbacks *cb);
 
 #endif
