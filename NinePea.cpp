@@ -34,7 +34,7 @@ putstat(unsigned char *buffer, unsigned long index, Stat *stat) {
 	unsigned int muidlen = strlen(stat->muid);
 
 	unsigned int size = 2 + 4 + (1 + 4 + 8) + 4 + 4 + 4 + 8 + (2 * 4) + namelen + uidlen + gidlen + muidlen;
-	put2(buffer, index, size);
+//	put2(buffer, index, size);
 
 	put2(buffer, index, stat->type);
 	put4(buffer, index, stat->dev);
@@ -62,7 +62,7 @@ putstat(unsigned char *buffer, unsigned long index, Stat *stat) {
 	memcpy(&buffer[index], stat->muid, muidlen);
 	index += muidlen;
 
-	return (size + 2);
+	return (size);
 }
 
 prog_char Etoobig[] PROGMEM = "message too big";
