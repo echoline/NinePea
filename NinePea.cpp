@@ -76,6 +76,7 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
 	unsigned long index;
 	unsigned char i;
 
+	msg[size] = '\0';
 	index = 4;
 	ifcall.type = msg[index++];
 	get2(msg, index, ifcall.tag);

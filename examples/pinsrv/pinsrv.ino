@@ -508,26 +508,26 @@ void setup() {
 
 unsigned char msg[MAX_MSG+1];
 unsigned int msglen = 0;
-unsigned int read = 0;
+unsigned int r = 0;
 unsigned int lastread = 0;
 
 void loop() {
   unsigned long i;
 
   while (Serial.available()) {
-    msg[read++] = Serial.read();
+    msg[r++] = Serial.read();
 
     lastread = millis();
 
-    if (read == msglen)
+    if (r == msglen)
       break;
   }
 
   // timeout
   if (lastread != 0 && (millis() - lastread) > 1000)
-    read = msglen = lastread = 0;
+    r = msglen = lastread = 0;
 
-  if (read < msglen || read < 5)
+  if (r < msglen || r < 5)
     return;
 
   if (msglen == 0) {
@@ -539,14 +539,14 @@ void loop() {
 	msglen > MAX_MSG ||
 	msg[i] < TVersion ||
       msg[i] > TWStat) {
-      read = msglen = lastread = 0;
+      r = msglen = lastread = 0;
     }
 
-    if ((read != msglen) || (read == 0))
+    if ((r != msglen) || (r == 0))
       return;
   }
 
-  if (read == msglen) {
+  if (r == msglen) {
     memset(&ofcall, 0, sizeof(ofcall));
 
     // proc9p accepts valid 9P msgs of length msglen,
@@ -557,10 +557,11 @@ void loop() {
     for (i = 0; i < msglen; i++)
       Serial.write(msg[i]);
 
-    lastread = read = msglen = 0;
+    lastread = r = msglen = 0;
 
     return;
   }
 
   die(1);
 }
+
