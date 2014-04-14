@@ -262,7 +262,7 @@ fs_read(Fcall *ifcall, unsigned char *out) {
   else if (((unsigned long)cur->data) == Qdata) {
     snprintf((char*)out, MAX_IO - 1, "digital pins:\n");
 
-    for (i = 2; i < 14; i++) {
+    for (i = 2; i < 54; i++) {
       if (digitalRead(i))
         snprintf(tmpstr, sizeof(tmpstr), "\t%d:\tHIGH\n", i);
       else
@@ -274,7 +274,7 @@ fs_read(Fcall *ifcall, unsigned char *out) {
     snprintf(tmpstr, sizeof(tmpstr), "analog pins:\n");
     strlcat((char*)out, tmpstr, MAX_IO);
 
-    for (i = A0; i <= A5; i++) {
+    for (i = A0; i <= A15; i++) {
       value = analogRead(i - A0);
       snprintf(tmpstr, sizeof(tmpstr), "\t%d:\t%04d\n", i, value);
       strlcat((char*)out, tmpstr, MAX_IO);
@@ -375,9 +375,9 @@ setpindirs(char *in, Fcall *ofcall) {
   while (line != NULL) {
     readpinvalue(line, &pin, &val);
 
-    if (pin < 2 || pin > 19 || val < 0 || val > 1) {
+    if (pin < 2 || pin > 69 || val < 0 || val > 1) {
       ofcall->type = RError;
-      strcpy(errstr, "format is pin=val: pin is 2-19 and val is 0 or 1");
+      strcpy(errstr, "format is [2,69]=[0,1]");
       ofcall->ename = errstr;
 
       return;
@@ -397,15 +397,15 @@ setpinvals(char *in, Fcall *ofcall) {
   while (line != NULL) {
     readpinvalue(line, &pin, &val);
 
-    if (pin < 2 || pin > 19 || val < 0 || val > 255) {
+    if (pin < 2 || pin > 69 || val < 0 || val > 255) {
       ofcall->type = RError;
-      strcpy(errstr, "format is pin=val: pin is 2-19 and val is 0, 1, or 0-255 for analog");
+      strcpy(errstr, "format is [2,69]=[0,255]");
       ofcall->ename = errstr;
 
       return;
     }
 
-    if (pin == 3 || pin == 5 || pin == 6 || (pin >= 9 && pin <= 11)) {
+    if (pin < 14) {
       if (val > 1)
         analogWrite(pin, val);
       else
@@ -415,7 +415,7 @@ setpinvals(char *in, Fcall *ofcall) {
       digitalWrite(pin, val);
     }
     else {
-      sprintf(errstr, "pin %d does not support analog writes", pin);
+      snprintf(errstr, 64, "pin %d does not support analog writes", pin);
       ofcall->type = RError;
       ofcall->ename = errstr;
 
@@ -509,7 +509,7 @@ void setup() {
 unsigned char msg[MAX_MSG+1];
 unsigned int msglen = 0;
 unsigned int r = 0;
-unsigned int lastread = 0;
+unsigned long lastread = 0;
 
 void loop() {
   unsigned long i;
@@ -519,12 +519,12 @@ void loop() {
 
     lastread = millis();
 
-    if (r > msglen)
+    if (r >= msglen)
       break;
   }
-
+  
   // timeout
-  if (lastread != 0 && (millis() - lastread) > 1000)
+  if ((millis() - lastread) > 1000)
     r = msglen = lastread = 0;
 
   if (r < msglen || r < 5)
