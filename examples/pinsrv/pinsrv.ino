@@ -519,7 +519,7 @@ void loop() {
 
     lastread = millis();
 
-    if (r == msglen)
+    if (r > msglen)
       break;
   }
 
