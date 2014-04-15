@@ -65,6 +65,54 @@ putstat(unsigned char *buffer, unsigned long index, Stat *stat) {
 	return (size + 2);
 }
 
+int
+getstat(unsigned char *buffer, unsigned long index, Stat *stat) {
+	unsigned int size;
+	unsigned long tmp;
+	unsigned int namelen;
+	unsigned int uidlen;
+	unsigned int gidlen;
+	unsigned int muidlen;
+
+	get2(buffer, index, size);
+
+	get2(buffer, index, stat->type);
+	get4(buffer, index, stat->dev);
+	buffer[index++] = stat->qid.type;
+	get4(buffer, index, stat->qid.version);
+	get8(buffer, index, stat->qid.path, tmp);
+	get4(buffer, index, stat->mode);
+	get4(buffer, index, stat->atime);
+	get4(buffer, index, stat->mtime);
+	get8(buffer, index, stat->length, tmp);
+
+	get2(buffer, index, namelen);
+	stat->name = (char*)malloc (sizeof (char) * (namelen + 1));
+	stat->name[namelen] = '\0';
+	memcpy(stat->name, &buffer[index], namelen);
+	index += namelen;
+
+	get2(buffer, index, uidlen);
+	stat->uid = (char*)malloc (sizeof (char) * (uidlen + 1));
+	stat->uid[uidlen] = '\0';
+	memcpy(stat->uid, &buffer[index], uidlen);
+	index += uidlen;
+
+	get2(buffer, index, gidlen);
+	stat->gid = (char*)malloc (sizeof (char) * (gidlen + 1));
+	stat->gid[gidlen] = '\0';
+	memcpy(stat->gid, &buffer[index], gidlen);
+	index += gidlen;
+
+	get2(buffer, index, muidlen);
+	stat->muid = (char*)malloc (sizeof (char) * (muidlen + 1));
+	stat->muid[muidlen] = '\0';
+	memcpy(stat->muid, &buffer[index], muidlen);
+	index += muidlen;
+
+	return index;
+}
+
 prog_char Etoobig[] PROGMEM = "message too big";
 prog_char Ebadtype[] PROGMEM = "unknown message type";
 
@@ -315,6 +363,22 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
 
 		index = puthdr(msg, 0, RFlush, ifcall.tag, 7);
 
+		break;
+	case TWStat:
+		get4(msg, index, ifcall.fid);
+		index = getstat(msg, index, &ifcall.stat);
+
+		ofcall = cb->wstat(&ifcall);
+
+		free (ifcall.stat.name);
+		free (ifcall.stat.uid);
+		free (ifcall.stat.gid);
+		free (ifcall.stat.muid);
+		
+		if (ofcall->type == RError)
+			index = mkerr(msg, ifcall.tag, ofcall->ename);
+		else
+			index = puthdr(msg, 0, RWStat, ifcall.tag, 7);
 		break;
 	default:
 		strcpy_P(pgmbuf, Ebadtype);

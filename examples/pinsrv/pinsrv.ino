@@ -471,6 +471,11 @@ fs_flush(Fcall *ifcall) {
   return ifcall;
 }
 
+Fcall*
+fs_wstat(Fcall *ifcall) {
+  return ifcall;
+}
+
 Callbacks callbacks;
 
 /* arduino stuff */
@@ -504,6 +509,7 @@ void setup() {
   callbacks.clunk = fs_clunk;
   callbacks.remove = fs_remove;
   callbacks.stat = fs_stat;
+  callbacks.wstat = fs_wstat;
 }
 
 unsigned char msg[MAX_MSG+1];

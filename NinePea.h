@@ -30,6 +30,10 @@
 	value |= buffer[index++] << 16; \
 	value |= buffer[index++] << 24; \
 
+#define get8(buffer, index, lvalue, hvalue) \
+	get4(buffer, index, lvalue); \
+	get4(buffer, index, hvalue); \
+
 #define get2(buffer, index, value) \
 	value = buffer[index++]; \
 	value |= buffer[index++] << 8; \
@@ -201,6 +205,7 @@ typedef struct {
 	Fcall* (*clunk)(Fcall*);
 	Fcall* (*remove)(Fcall*);
 	Fcall* (*stat)(Fcall*);
+	Fcall* (*wstat)(Fcall*);
 } Callbacks;
 
 int putstat(unsigned char *buffer, unsigned long index, Stat *stat);
