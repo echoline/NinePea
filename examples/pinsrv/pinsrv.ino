@@ -16,94 +16,6 @@ enum {
   QNUM,
 };
 
-/* fid mapping functions */
-
-struct hentry {
-  unsigned long id;
-  unsigned long data;
-  struct hentry *next;
-  struct hentry *prev;
-};
-
-struct htable {
-  unsigned char length;
-  struct hentry **data;
-};
-
-struct htable *fs_fids;
-
-unsigned long
-hashf(struct htable *tbl, unsigned long id) {
-  return id % tbl->length;
-}
-
-struct hentry*
-fs_fid_find(unsigned long id) {
-  struct hentry **cur;
-
-  for (cur = &(fs_fids->data[hashf(fs_fids, id)]);
-        *cur != NULL; cur = &(*cur)->next) {
-      if ((*cur)->id == id)
-        break;
-  }
-
-  return *cur;
-}
-
-struct hentry*
-fs_fid_add(unsigned long id, unsigned long data) {
-  struct hentry *cur = fs_fid_find(id);
-  unsigned char h;
-
-  if (cur == NULL) {
-    cur = (struct hentry*)calloc(1, sizeof(*cur));
-    cur->id = id;
-    cur->data = data;
-    h = hashf(fs_fids, id);
-    
-    if (fs_fids->data[h]) {
-      cur->next = fs_fids->data[h];
-      cur->next->prev = cur;
-    }
-    fs_fids->data[h] = cur;
-
-    return NULL;
-  }
-
-  cur->data = data;
-
-  return cur;
-}
-
-void
-fs_fid_del(unsigned long id) {
-  unsigned char h = hashf(fs_fids, id);
-  struct hentry *cur = fs_fids->data[h];
-  
-  if (cur->id == id)
-    fs_fids->data[h] = cur->next;
-  else {
-    cur = cur->next;
-    while (cur) {
-      if (cur->id == id)
-        break;
-
-      cur = cur->next;
-    }
-  }
-
-  if (cur == NULL) {
-    return;
-  }
-
-  if (cur->prev)
-    cur->prev->next = cur->next;
-  if (cur->next)
-    cur->next->prev = cur->prev;
-
-  free(cur);
-}
-
 /* 9p handlers */
 
 Fcall*
@@ -494,9 +406,7 @@ void die(unsigned char code) {
 void setup() {
   Serial.begin(57600);
 
-  fs_fids = (htable*)malloc(sizeof(htable));
-  fs_fids->length = 16;
-  fs_fids->data = (hentry**)calloc(fs_fids->length, sizeof(hentry*));
+  fs_fid_init(16);
 
   // this is REQUIRED by proc9p (see below)
   callbacks.attach = fs_attach;

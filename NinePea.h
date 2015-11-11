@@ -211,4 +211,23 @@ typedef struct {
 int putstat(unsigned char *buffer, unsigned long index, Stat *stat);
 unsigned long proc9p(unsigned char *msg, unsigned long size, Callbacks *cb);
 
+/* fid mapping functions */
+
+struct hentry {
+	unsigned long id;
+	unsigned long data;
+	struct hentry *next;
+	struct hentry *prev;
+};
+
+struct htable {
+	unsigned char length;
+	struct hentry **data;
+};
+
+struct hentry* fs_fid_find(unsigned long id);
+struct hentry* fs_fid_add(unsigned long id, unsigned long data);
+void fs_fid_del(unsigned long id);
+void fs_fid_init(int l);
+
 #endif
