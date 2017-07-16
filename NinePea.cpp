@@ -1,7 +1,5 @@
 #include "NinePea.h"
-#include <avr/pgmspace.h>
 
-char pgmbuf[MAX_PGMBUF];
 struct htable *fs_fids;
 
 int
@@ -114,8 +112,8 @@ getstat(unsigned char *buffer, unsigned long index, Stat *stat) {
 	return index;
 }
 
-prog_char Etoobig[] PROGMEM = "message too big";
-prog_char Ebadtype[] PROGMEM = "unknown message type";
+char Etoobig[] = "message too big";
+char Ebadtype[] = "unknown message type";
 
 unsigned long
 proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
@@ -131,8 +129,7 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
 	get2(msg, index, ifcall.tag);
 
 	if (size > MAX_MSG) {
-		strcpy_P(pgmbuf, Etoobig);
-		index = mkerr(msg, ifcall.tag, pgmbuf);
+		index = mkerr(msg, ifcall.tag, Etoobig);
 		goto END;
 	}
 
@@ -382,15 +379,13 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
 			index = puthdr(msg, 0, RWStat, ifcall.tag, 7);
 		break;
 	default:
-		strcpy_P(pgmbuf, Ebadtype);
-		index = mkerr(msg, ifcall.tag, pgmbuf);
+		index = mkerr(msg, ifcall.tag, Ebadtype);
 		break;
 	}
 
 END:
 	if (index > MAX_MSG) {
-		strcpy_P(pgmbuf, Etoobig);
-		index = mkerr(msg, ifcall.tag, pgmbuf);
+		index = mkerr(msg, ifcall.tag, Etoobig);
 	}
 
 	return index;

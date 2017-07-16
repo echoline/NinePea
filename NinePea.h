@@ -39,13 +39,11 @@
 	value |= buffer[index++] << 8; \
 
 // might have to change these depending on memory allocated
-#define MAX_IO 1024	// blatant lie?
-#define MAX_MSG 1056
+#define MAX_IO 2048	// blatant lie?
+#define MAX_MSG 2080
 #define MAX_WELEM 16
 #define MAX_PGMBUF 80
 #define NOTAG ~0
-
-extern char pgmbuf[];
 
 /* 9P message types */
 enum {

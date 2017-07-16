@@ -2,17 +2,31 @@
 
 Fcall ofcall;
 char errstr[64];
-char Snone[] = "none";
+char Snone[] = "arduino";
 char Sroot[] = "/";
-char Sctl[] = "arduinoctl";
-char Sdata[] = "arduino";
+char Sleft[] = "left";
+char Sright[] = "right";
+
+int Mleft, Mright;
+#define LEFT 1
+#define RIGHT 2
+#define BOTH 3
+
+void
+motors(int which)
+{
+  if (which & LEFT)
+    analogWrite(6, Mleft + 127);
+  if (which & RIGHT)
+    analogWrite(5, Mright + 127);
+}
 
 /* paths */
 
 enum {
   Qroot = 0,
-  Qctl,
-  Qdata,
+  Qleft,
+  Qright,
   QNUM,
 };
 
@@ -47,13 +61,13 @@ fs_walk(Fcall *ifcall) {
   for (i = 0; i < ifcall->nwname; i++) {
     switch(ent->data) {
     case Qroot:
-      if (!strcmp(ifcall->wname[i], "arduinoctl")) {
+      if (!strcmp(ifcall->wname[i], "left")) {
         ofcall.wqid[i].type = QTTMP;
-        ofcall.wqid[i].path = path = Qctl;
+        ofcall.wqid[i].path = path = Qleft;
       } 
-      else if (!strcmp(ifcall->wname[i], "arduino")) {
+      else if (!strcmp(ifcall->wname[i], "right")) {
         ofcall.wqid[i].type = QTTMP;
-        ofcall.wqid[i].path = path = Qdata;
+        ofcall.wqid[i].path = path = Qright;
       } 
       else if (!strcmp(ifcall->wname[i], ".")) {
         ofcall.wqid[i].type = QTTMP | QTDIR;
@@ -67,19 +81,12 @@ fs_walk(Fcall *ifcall) {
         return &ofcall;
       }
       break;
-    case Qdata:
-    case Qctl:
-      if (!strcmp(ifcall->wname[i], "..")) {
-        ofcall.wqid[i].type = QTTMP | QTDIR;
-        ofcall.wqid[i].path = path = Qroot;
-      } 
-      else {
-        ofcall.type = RError;
-        strcpy(errstr, "file not found");
-        ofcall.ename = errstr;
+    default:
+      ofcall.type = RError;
+      strcpy(errstr, "file not found");
+      ofcall.ename = errstr;
 
-        return &ofcall;
-      }
+      return &ofcall;
       break;
     }
   }
@@ -117,13 +124,13 @@ fs_stat(Fcall *ifcall) {
     ofcall.stat.mode |= 0111 | DMDIR;
     ofcall.stat.name = Sroot;
     break;
-  case Qctl:
-    ofcall.stat.qid.path = Qctl;
-    ofcall.stat.name = Sctl;
+  case Qleft:
+    ofcall.stat.qid.path = Qleft;
+    ofcall.stat.name = Sleft;
     break;
-  case Qdata:
-    ofcall.stat.qid.path = Qdata;
-    ofcall.stat.name = Sdata;
+  case Qright:
+    ofcall.stat.qid.path = Qright;
+    ofcall.stat.name = Sright;
     break;
   }
 
@@ -171,33 +178,6 @@ fs_read(Fcall *ifcall, unsigned char *out) {
     strcpy(errstr, "invalid fid");
     ofcall.ename = errstr;
   }
-  else if (((unsigned long)cur->data) == Qdata) {
-    snprintf((char*)out, MAX_IO - 1, "digital pins:\n");
-
-    for (i = 2; i < 54; i++) {
-      if (digitalRead(i))
-        snprintf(tmpstr, sizeof(tmpstr), "\t%d:\tHIGH\n", i);
-      else
-        snprintf(tmpstr, sizeof(tmpstr), "\t%d:\t LOW\n", i);
-
-      strlcat((char*)out, tmpstr, MAX_IO);
-    }
-
-    snprintf(tmpstr, sizeof(tmpstr), "analog pins:\n");
-    strlcat((char*)out, tmpstr, MAX_IO);
-
-    for (i = A0; i <= A15; i++) {
-      value = analogRead(i - A0);
-      snprintf(tmpstr, sizeof(tmpstr), "\t%d:\t%04d\n", i, value);
-      strlcat((char*)out, tmpstr, MAX_IO);
-    }
-
-    ofcall.count = strlen((char*)out) - ifcall->offset;
-    if (ofcall.count > ifcall->count)
-      ofcall.count = ifcall->count;
-    if (ifcall->offset != 0)
-      memmove(out, &out[ifcall->offset], ofcall.count);
-  } 
   // offset?  too hard, sorry
   else if (ifcall->offset != 0) {
     out[0] = '\0';
@@ -207,29 +187,32 @@ fs_read(Fcall *ifcall, unsigned char *out) {
     stat.type = 0;
     stat.dev = 0;
     stat.qid.type = QTTMP;
-    stat.qid.path = Qdata;
+    stat.qid.path = Qright;
     stat.mode = 0666 | DMTMP;
     stat.atime = 0;
     stat.mtime = 0;
     stat.length = 0;
-    stat.name = Sdata;
+    stat.name = Sright;
     stat.uid = Snone;
     stat.gid = Snone;
     stat.muid = Snone;
     ofcall.count = putstat(out, 0, &stat);
 
-    stat.qid.path = Qctl;
-    stat.name = Sctl;
+    stat.qid.path = Qleft;
+    stat.name = Sleft;
     stat.uid = Snone;
     stat.gid = Snone;
     stat.muid = Snone;
     
     ofcall.count += putstat(out, ofcall.count, &stat);
   }
-  else if (((unsigned long)cur->data) == Qctl) {
-    ofcall.type = RError;
-    strcpy(errstr, "ctl file read does nothing...");
-    ofcall.ename = errstr;
+  else if (((unsigned long)cur->data) == Qleft) {
+    snprintf((char*)out, MAX_IO - 1, "%d\n", Mleft);
+    ofcall.count = strlen(out);
+  } 
+  else if (((unsigned long)cur->data) == Qright) {
+    snprintf((char*)out, MAX_IO - 1, "%d\n", Mright);
+    ofcall.count = strlen(out);
   }
   else {
     sprintf(errstr, "unknown path: %x\n", (unsigned int)cur->data);
@@ -249,98 +232,10 @@ fs_create(Fcall *ifcall) {
   return &ofcall;
 }
 
-/* interlude...? */
-
-void
-readpinvalue(char *line, unsigned char *pin, unsigned char *value) {
-  char *p = line;
-  char *q = line;
-
-  *pin = *value = -1;
-
-  while (isdigit(*p) || isspace(*p))
-    p++;
-
-  if (*p == '=')
-    *p = '\0';
-  else
-    return;
-
-  p++;
-  q = p;
-
-  while (isdigit(*p) || isspace(*p))
-    p++;
-
-  if (*p != '\0')
-    return;
-
-  *pin = atoi(line);
-  *value = atoi(q);
-}
-
-void
-setpindirs(char *in, Fcall *ofcall) {
-  char *line = strtok(in, "\n");
-  unsigned char pin, val;
-
-  while (line != NULL) {
-    readpinvalue(line, &pin, &val);
-
-    if (pin < 2 || pin > 69 || val < 0 || val > 1) {
-      ofcall->type = RError;
-      strcpy(errstr, "format is [2,69]=[0,1]");
-      ofcall->ename = errstr;
-
-      return;
-    }
-
-    pinMode(pin, val);
-
-    line = strtok(NULL, "\n");
-  }
-}
-
-void
-setpinvals(char *in, Fcall *ofcall) {
-  char *line = strtok(in, "\n");
-  unsigned char pin, val;
-
-  while (line != NULL) {
-    readpinvalue(line, &pin, &val);
-
-    if (pin < 2 || pin > 69 || val < 0 || val > 255) {
-      ofcall->type = RError;
-      strcpy(errstr, "format is [2,69]=[0,255]");
-      ofcall->ename = errstr;
-
-      return;
-    }
-
-    if (pin < 14) {
-      if (val > 1)
-        analogWrite(pin, val);
-      else
-        digitalWrite(pin, val);
-    }
-    else if (val < 2) {
-      digitalWrite(pin, val);
-    }
-    else {
-      snprintf(errstr, 64, "pin %d does not support analog writes", pin);
-      ofcall->type = RError;
-      ofcall->ename = errstr;
-
-      return;
-    }
-
-    line = strtok(NULL, "\n");
-  }
-}
-
 Fcall*
 fs_write(Fcall *ifcall, unsigned char *in) {
   struct hentry *cur = fs_fid_find(ifcall->fid);
+  char *ep = &in[ifcall->count];
 
   ofcall.count = ifcall->count;
 
@@ -354,11 +249,13 @@ fs_write(Fcall *ifcall, unsigned char *in) {
     strcpy(errstr, "is a directory");
     ofcall.ename = errstr;
   }
-  else if (((unsigned long)cur->data) == Qdata) {
-    setpinvals((char*)in, &ofcall);
+  else if (((unsigned long)cur->data) == Qleft) {
+    Mleft = strtod(in, &ep);
+    motors(LEFT);
   } 
-  else if (((unsigned long)cur->data) == Qctl) {
-    setpindirs((char*)in, &ofcall);
+  else if (((unsigned long)cur->data) == Qright) {
+    Mright = strtod(in, &ep);
+    motors(RIGHT);
   }
   else {
     sprintf(errstr, "unknown path: %x\n", (unsigned int)cur->data);
@@ -390,9 +287,9 @@ fs_wstat(Fcall *ifcall) {
 
 Callbacks callbacks;
 
-/* arduino stuff */
-
-void die(unsigned char code) {
+void
+sysfatal(char code)
+{
   pinMode(13, OUTPUT);	
 
   while(true) {
@@ -403,8 +300,15 @@ void die(unsigned char code) {
   }
 }
 
-void setup() {
-  Serial.begin(57600);
+void
+setup()
+{
+  pinMode(5, OUTPUT);
+  pinMode(6, OUTPUT);
+  Mleft = Mright = 0;
+  motors(BOTH);
+
+  Serial.begin(9600);
 
   fs_fid_init(16);
 
@@ -425,59 +329,39 @@ void setup() {
 unsigned char msg[MAX_MSG+1];
 unsigned int msglen = 0;
 unsigned int r = 0;
-unsigned long lastread = 0;
 
-void loop() {
+void
+loop()
+{
   unsigned long i;
 
-  while (Serial.available()) {
+  while (r < 5) {
+    while (Serial.available() < 1);
     msg[r++] = Serial.read();
-
-    lastread = millis();
-
-    if (r >= msglen)
-      break;
-  }
-  
-  // timeout
-  if ((millis() - lastread) > 1000)
-    r = msglen = lastread = 0;
-
-  if (r < msglen || r < 5)
-    return;
-
-  if (msglen == 0) {
-    i = 0;
-    get4(msg, i, msglen);
-
-    // sanity check
-    if (msg[i] & 1 ||
-	msglen > MAX_MSG ||
-	msg[i] < TVersion ||
-      msg[i] > TWStat) {
-      r = msglen = lastread = 0;
-    }
-
-    if ((r != msglen) || (r == 0))
-      return;
   }
 
-  if (r == msglen) {
-    memset(&ofcall, 0, sizeof(ofcall));
+  i = 0;
+  get4(msg, i, msglen);
 
-    // proc9p accepts valid 9P msgs of length msglen,
-    // processes them using callbacks->various(functions);
-    // returns variable out's msglen
-    msglen = proc9p(msg, msglen, &callbacks);
-
-    for (i = 0; i < msglen; i++)
-      Serial.write(msg[i]);
-
-    lastread = r = msglen = 0;
-
-    return;
+  // sanity check
+  if (msg[i] & 1 || msglen > MAX_MSG || msg[i] < TVersion || msg[i] > TWStat) {
+    sysfatal(3);
   }
 
-  die(1);
+  while (r < msglen) {
+    while (Serial.available() < 1);
+    msg[r++] = Serial.read();
+  }
+
+  memset(&ofcall, 0, sizeof(ofcall));
+
+  // proc9p accepts valid 9P msgs of length msglen,
+  // processes them using callbacks->various(functions);
+  // returns variable out's msglen
+  msglen = proc9p(msg, msglen, &callbacks);
+
+  Serial.write(msg, msglen);
+
+  r = msglen = 0;
 }
 
