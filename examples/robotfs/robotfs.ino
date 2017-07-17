@@ -35,6 +35,7 @@ enum {
 Fcall*
 fs_attach(Fcall *ifcall) {
   ofcall.qid.type = QTDIR | QTTMP;
+  ofcall.qid.version = 0;
   ofcall.qid.path = Qroot;
 
   fs_fid_add(ifcall->fid, Qroot);
@@ -50,8 +51,7 @@ fs_walk(Fcall *ifcall) {
 
   if (!ent) {
     ofcall.type = RError;
-    strcpy(errstr, "file not found");
-    ofcall.ename = errstr;
+    ofcall.ename = Enofile;
 
     return &ofcall;
   }
@@ -62,29 +62,29 @@ fs_walk(Fcall *ifcall) {
     switch(ent->data) {
     case Qroot:
       if (!strcmp(ifcall->wname[i], "left")) {
-        ofcall.wqid[i].type = QTTMP;
+        ofcall.wqid[i].type = QTFILE;
+        ofcall.wqid[i].version = 0;
         ofcall.wqid[i].path = path = Qleft;
       } 
       else if (!strcmp(ifcall->wname[i], "right")) {
-        ofcall.wqid[i].type = QTTMP;
+        ofcall.wqid[i].type = QTFILE;
+        ofcall.wqid[i].version = 0;
         ofcall.wqid[i].path = path = Qright;
       } 
       else if (!strcmp(ifcall->wname[i], ".")) {
-        ofcall.wqid[i].type = QTTMP | QTDIR;
+        ofcall.wqid[i].type = QTDIR;
+        ofcall.wqid[i].version = 0;
         ofcall.wqid[i].path = path = Qroot;
       } 
       else {
         ofcall.type = RError;
-        strcpy(errstr, "file not found");
-        ofcall.ename = errstr;
-
+        ofcall.ename = Enofile;
         return &ofcall;
       }
       break;
     default:
       ofcall.type = RError;
-      strcpy(errstr, "file not found");
-      ofcall.ename = errstr;
+      ofcall.ename = Enofile;
 
       return &ofcall;
       break;
@@ -92,6 +92,13 @@ fs_walk(Fcall *ifcall) {
   }
 
   ofcall.nwqid = i;
+
+  if (fs_fid_find(ifcall->newfid) != NULL) {
+    ofcall.type = RError;
+    strcpy(errstr, "new fid exists");
+    ofcall.ename = errstr;
+    return &ofcall;
+  }
 
   fs_fid_add(ifcall->newfid, path);
 
@@ -104,8 +111,7 @@ fs_stat(Fcall *ifcall) {
 
   if ((ent = fs_fid_find(ifcall->fid)) == NULL) {
     ofcall.type = RError;
-    strcpy(errstr, "file not found");
-    ofcall.ename = errstr;
+    ofcall.ename = Enofile;
 
     return &ofcall;
   }
@@ -148,19 +154,18 @@ Fcall*
 fs_open(Fcall *ifcall) {
   struct hentry *cur = fs_fid_find(ifcall->fid);
 
-  if (!cur) {
+  if (cur == NULL) {
     ofcall.type = RError;
-    strcpy(errstr, "file not found");
-    ofcall.ename = errstr;
+    ofcall.ename = Enofile;
 
     return &ofcall;
   }
 
-  ofcall.qid.type = QTTMP;
+  ofcall.qid.type = QTFILE;
   ofcall.qid.path = cur->data;
 
   if (cur->data == Qroot)
-    ofcall.qid.type |= QTDIR;
+    ofcall.qid.type = QTDIR;
 
   return &ofcall;
 }
@@ -175,8 +180,7 @@ fs_read(Fcall *ifcall, unsigned char *out) {
 
   if (cur == NULL) {
     ofcall.type = RError;
-    strcpy(errstr, "invalid fid");
-    ofcall.ename = errstr;
+    ofcall.ename = Enofile;
   }
   // offset?  too hard, sorry
   else if (ifcall->offset != 0) {
@@ -186,12 +190,13 @@ fs_read(Fcall *ifcall, unsigned char *out) {
   else if (((unsigned long)cur->data) == Qroot) {
     stat.type = 0;
     stat.dev = 0;
-    stat.qid.type = QTTMP;
-    stat.qid.path = Qright;
-    stat.mode = 0666 | DMTMP;
+    stat.qid.type = QTFILE;
+    stat.mode = 0666;
     stat.atime = 0;
     stat.mtime = 0;
     stat.length = 0;
+
+    stat.qid.path = Qright;
     stat.name = Sright;
     stat.uid = Snone;
     stat.gid = Snone;
@@ -203,7 +208,6 @@ fs_read(Fcall *ifcall, unsigned char *out) {
     stat.uid = Snone;
     stat.gid = Snone;
     stat.muid = Snone;
-    
     ofcall.count += putstat(out, ofcall.count, &stat);
   }
   else if (((unsigned long)cur->data) == Qleft) {
@@ -215,9 +219,8 @@ fs_read(Fcall *ifcall, unsigned char *out) {
     ofcall.count = strlen(out);
   }
   else {
-    sprintf(errstr, "unknown path: %x\n", (unsigned int)cur->data);
     ofcall.type = RError;
-    ofcall.ename = errstr;
+    ofcall.ename = Enofile;
   }
 
   return &ofcall;
@@ -226,8 +229,7 @@ fs_read(Fcall *ifcall, unsigned char *out) {
 Fcall*
 fs_create(Fcall *ifcall) {
   ofcall.type = RError;
-  strcpy(errstr, "create not allowed");
-  ofcall.ename = errstr;
+  ofcall.ename = Eperm;
 
   return &ofcall;
 }
@@ -241,13 +243,11 @@ fs_write(Fcall *ifcall, unsigned char *in) {
 
   if (cur == NULL) {
     ofcall.type = RError;
-    strcpy(errstr, "invalid fid");
-    ofcall.ename = errstr;
+    ofcall.ename = Enofile;
   }
   else if (((unsigned long)cur->data) == Qroot) {
     ofcall.type = RError;
-    strcpy(errstr, "is a directory");
-    ofcall.ename = errstr;
+    ofcall.ename = Eperm;
   }
   else if (((unsigned long)cur->data) == Qleft) {
     Mleft = strtod(in, &ep);
@@ -258,9 +258,8 @@ fs_write(Fcall *ifcall, unsigned char *in) {
     motors(RIGHT);
   }
   else {
-    sprintf(errstr, "unknown path: %x\n", (unsigned int)cur->data);
     ofcall.type = RError;
-    ofcall.ename = errstr;
+    ofcall.ename = Eperm;
   }
 
   return &ofcall;
@@ -269,8 +268,7 @@ fs_write(Fcall *ifcall, unsigned char *in) {
 Fcall*
 fs_remove(Fcall *ifcall) {
   ofcall.type = RError;
-  strcpy(errstr, "remove not allowed");
-  ofcall.ename = errstr;
+  ofcall.ename = Eperm;
 
   return &ofcall;
 }
@@ -288,7 +286,7 @@ fs_wstat(Fcall *ifcall) {
 Callbacks callbacks;
 
 void
-sysfatal(char code)
+sysfatal(int code)
 {
   pinMode(13, OUTPUT);	
 
@@ -308,9 +306,9 @@ setup()
   Mleft = Mright = 0;
   motors(BOTH);
 
-  Serial.begin(9600);
+  Serial.begin(115200);
 
-  fs_fid_init(16);
+  fs_fid_init(64);
 
   // this is REQUIRED by proc9p (see below)
   callbacks.attach = fs_attach;

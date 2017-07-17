@@ -114,6 +114,8 @@ getstat(unsigned char *buffer, unsigned long index, Stat *stat) {
 
 char Etoobig[] = "TMI";
 char Ebadtype[] = "9P?";
+char Enofile[] = "file not found";
+char Eperm[] = "permission denied";
 
 unsigned long
 proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
@@ -129,8 +131,7 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
 	get2(msg, index, ifcall.tag);
 
 	if (size > MAX_MSG) {
-		index = mkerr(msg, ifcall.tag, Etoobig);
-		goto END;
+		return mkerr(msg, ifcall.tag, Etoobig);
 	}
 
 	// if it isn't here, it isn't implemented
@@ -151,6 +152,9 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
 		index += slen;
 		puthdr(msg, 0, RVersion, ifcall.tag, index);
 
+		break;
+	case TAuth:
+		index = mkerr(msg, ifcall.tag, "no auth");
 		break;
 	case TAttach:
 		get4(msg, index, ifcall.fid);
@@ -175,7 +179,7 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
 		if (ofcall->type == RError) {
 			index = mkerr(msg, ifcall.tag, ofcall->ename);
 
-			goto END;
+			break;
 		}
 
 		index = 7;
@@ -204,10 +208,13 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
 
 		ofcall = cb->walk(&ifcall);
 
+		for (i = 0; i < ifcall.nwname; i++)
+			free(ifcall.wname[i]);
+
 		if (ofcall->type == RError) {
 			index = mkerr(msg, ifcall.tag, ofcall->ename);
 
-			goto END;
+			break;
 		}
 
 		index = puthdr(msg, 0, RWalk, ifcall.tag, 9 + ofcall->nwqid * 13);
@@ -228,7 +235,7 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
 		if (ofcall->type == RError) {
 			index = mkerr(msg, ifcall.tag, ofcall->ename);
 
-			goto END;
+			break;
 		}
 
 		slen = putstat(msg, 9, &(ofcall->stat));
@@ -245,7 +252,7 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
 		if (ofcall->type == RError) {
 			index = mkerr(msg, ifcall.tag, ofcall->ename);
 
-			goto END;
+			break;
 		}
 
 		index = puthdr(msg, 0, RClunk, ifcall.tag, 7);
@@ -260,7 +267,7 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
 		if (ofcall->type == RError) {
 			index = mkerr(msg, ifcall.tag, ofcall->ename);
 
-			goto END;
+			break;
 		}
 
 		index = puthdr(msg, 0, ROpen, ifcall.tag, 24);
@@ -281,14 +288,14 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
 		if (ofcall->type == RError) {
 			index = mkerr(msg, ifcall.tag, ofcall->ename);
 
-			goto END;
+			break;
 		}
 
 		// No response
 		if (ofcall == NULL) {
 			index = 0;
 
-			goto END;
+			break;
 		}
 
 		index = puthdr(msg, 0, RRead, ifcall.tag, 11 + ofcall->count);
@@ -310,7 +317,7 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
 		if (ofcall->type == RError) {
 			index = mkerr(msg, ifcall.tag, ofcall->ename);
 
-			goto END;
+			break;
 		}
 
 		index = puthdr(msg, 0, RCreate, ifcall.tag, 24);
@@ -331,7 +338,7 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
 		if (ofcall->type == RError) {
 			index = mkerr(msg, ifcall.tag, ofcall->ename);
 
-			goto END;
+			break;
 		}
 
 		index = puthdr(msg, 0, RWrite, ifcall.tag, 11);
@@ -346,7 +353,7 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
 		if (ofcall->type == RError) {
 			index = mkerr(msg, ifcall.tag, ofcall->ename);
 
-			goto END;
+			break;
 		}
 
 		index = puthdr(msg, 0, RRemove, ifcall.tag, 7);
@@ -360,13 +367,14 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
 		if (ofcall->type == RError) {
 			index = mkerr(msg, ifcall.tag, ofcall->ename);
 
-			goto END;
+			break;
 		}
 
 		index = puthdr(msg, 0, RFlush, ifcall.tag, 7);
 
 		break;
 	case TWStat:
+#if 0
 		get4(msg, index, ifcall.fid);
 		index = getstat(msg, index, &ifcall.stat);
 
@@ -382,12 +390,12 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
 		else
 			index = puthdr(msg, 0, RWStat, ifcall.tag, 7);
 		break;
+#endif
 	default:
 		index = mkerr(msg, ifcall.tag, Ebadtype);
 		break;
 	}
 
-END:
 	if (index > MAX_MSG) {
 		index = mkerr(msg, ifcall.tag, Etoobig);
 	}
@@ -423,7 +431,6 @@ fs_fid_add(unsigned long id, unsigned long data) {
 	if (cur == NULL) {
 		cur = (struct hentry*)calloc(1, sizeof(*cur));
 		cur->id = id;
-		cur->data = data;
 		h = hashf(fs_fids, id);
 		
 		if (fs_fids->data[h]) {
@@ -431,8 +438,6 @@ fs_fid_add(unsigned long id, unsigned long data) {
 			cur->next->prev = cur;
 		}
 		fs_fids->data[h] = cur;
-
-		return NULL;
 	}
 
 	cur->data = data;

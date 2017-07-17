@@ -47,29 +47,29 @@
 
 /* 9P message types */
 enum {
-	TVersion = 100,
+	TVersion = 'd',
 	RVersion,
-	TAuth = 102,
+	TAuth = 'f',
 	RAuth,
-	TAttach = 104,
+	TAttach = 'h',
 	RAttach,
-	TError = 106, /* illegal */
+	TError = 'j', /* illegal */
 	RError,
-	TFlush = 108,
+	TFlush = 'l',
 	RFlush,
-	TWalk = 110,
+	TWalk = 'n',
 	RWalk,
-	TOpen = 112,
+	TOpen = 'p',
 	ROpen,
-	TCreate = 114,
+	TCreate = 'r',
 	RCreate,
-	TRead = 116,
+	TRead = 't',
 	RRead,
-	TWrite = 118,
+	TWrite = 'v',
 	RWrite,
-	TClunk = 120,
+	TClunk = 'x',
 	RClunk,
-	TRemove = 122,
+	TRemove = 'z',
 	RRemove,
 	TStat = 124,
 	RStat,
@@ -227,5 +227,10 @@ struct hentry* fs_fid_find(unsigned long id);
 struct hentry* fs_fid_add(unsigned long id, unsigned long data);
 void fs_fid_del(unsigned long id);
 void fs_fid_init(int l);
+
+extern char Etoobig[];
+extern char Ebadtype[];
+extern char Enofile[];
+extern char Eperm[];
 
 #endif
