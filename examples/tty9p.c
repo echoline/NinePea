@@ -1,6 +1,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <termios.h>
 
 void
 exits(char *unused)
@@ -28,6 +29,7 @@ main(int argc, char **argv)
 	unsigned char in[16384];
 	unsigned char out;
 	int inlen, outlen;
+	struct termios tty;
 
 	if (argc < 2)
 		exits("args");
@@ -35,6 +37,16 @@ main(int argc, char **argv)
 	fd = open(argv[1], O_RDWR);
 	if (fd < 0)
 		exits("%r");
+
+	if (tcgetattr(fd, &tty) != 0)
+		exit(-2);
+
+	cfsetspeed(&tty, B115200);
+	tty.c_cflag &= ~PARENB;
+	tty.c_cflag |= CS8;
+
+	if (tcsetattr(fd, TCSANOW, &tty) != 0)
+		exit(-3);
 
 	pid = fork();
 	if (pid < 0)

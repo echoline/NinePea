@@ -112,14 +112,14 @@ getstat(unsigned char *buffer, unsigned long index, Stat *stat) {
 	return index;
 }
 
-char Etoobig[] = "message too big";
-char Ebadtype[] = "unknown message type";
+char Etoobig[] = "TMI";
+char Ebadtype[] = "9P?";
 
 unsigned long
 proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
 	Fcall ifcall;
 	Fcall *ofcall = NULL;
-	unsigned long slen;
+	unsigned long slen, tmp;
 	unsigned long index;
 	unsigned char i;
 
@@ -157,17 +157,20 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
 		get4(msg, index, ifcall.afid);
 
 		get2(msg, index, slen);
-		ifcall.uname = (char*)&msg[index];
 		index += slen;
 
 		get2(msg, index, slen);
 		msg[index-2] = '\0';
+		ifcall.uname = strdup((char*)&msg[index-2-slen]);
 
-		ifcall.aname = (char*)&msg[index];
 		index += slen;
-		msg[index-2] = '\0';
+		msg[index] = '\0';
+		ifcall.aname = strdup((char*)&msg[index-slen]);
 
 		ofcall = cb->attach(&ifcall);
+
+		free(ifcall.uname);
+		free(ifcall.aname);
 
 		if (ofcall->type == RError) {
 			index = mkerr(msg, ifcall.tag, ofcall->ename);
@@ -190,13 +193,14 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
 		if (ifcall.nwname > MAX_WELEM)
 			ifcall.nwname = MAX_WELEM;
 
+		get2(msg, index, slen);
 		for (i = 0; i < ifcall.nwname; i++) {
-			get2(msg, index, slen);
-			msg[index-2] = '\0';
-			ifcall.wname[i] = (char*)&msg[index];
 			index += slen;
+			get2(msg, index, tmp);
+			msg[index-2] = '\0';
+			ifcall.wname[i] = strdup((char*)&msg[index-2-slen]);
+			slen = tmp;
 		}
-		msg[index] = '\0';
 
 		ofcall = cb->walk(&ifcall);
 
