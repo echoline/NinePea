@@ -9,34 +9,25 @@
 	buffer[index++] = (value >> 8) & 0xFF; \
 
 #define put4(buffer, index, value) \
-	buffer[index++] = value & 0xFF; \
-	buffer[index++] = (value >> 8) & 0xFF; \
-	buffer[index++] = (value >> 16) & 0xFF; \
-	buffer[index++] = (value >> 24) & 0xFF; \
+	put2(buffer, index, value); \
+	put2(buffer, index, (unsigned long)value >> 16UL); \
 
 #define put8(buffer, index, lvalue, hvalue) \
-	buffer[index++] = lvalue & 0xFF; \
-	buffer[index++] = (lvalue >> 8) & 0xFF; \
-	buffer[index++] = (lvalue >> 16) & 0xFF; \
-	buffer[index++] = (lvalue >> 24) & 0xFF; \
-	buffer[index++] = hvalue & 0xFF; \
-	buffer[index++] = (hvalue >> 8) & 0xFF; \
-	buffer[index++] = (hvalue >> 16) & 0xFF; \
-	buffer[index++] = (hvalue >> 24) & 0xFF; \
-
-#define get4(buffer, index, value) \
-	value = buffer[index++]; \
-	value |= buffer[index++] << 8; \
-	value |= buffer[index++] << 16; \
-	value |= buffer[index++] << 24; \
-
-#define get8(buffer, index, lvalue, hvalue) \
-	get4(buffer, index, lvalue); \
-	get4(buffer, index, hvalue); \
+	put4(buffer, index, lvalue); \
+	put4(buffer, index, hvalue); \
 
 #define get2(buffer, index, value) \
 	value = buffer[index++]; \
 	value |= buffer[index++] << 8; \
+
+#define get4(buffer, index, value) \
+	get2(buffer, index, value); \
+	value |= (unsigned long)buffer[index++] << 16UL; \
+	value |= (unsigned long)buffer[index++] << 24UL; \
+
+#define get8(buffer, index, lvalue, hvalue) \
+	get4(buffer, index, lvalue); \
+	get4(buffer, index, hvalue); \
 
 // might have to change these depending on memory allocated
 #define MAX_IO 512	// blatant lie?

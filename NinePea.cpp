@@ -154,7 +154,7 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
 
 		break;
 	case TAuth:
-		index = mkerr(msg, ifcall.tag, "no auth");
+		index = mkerr(msg, ifcall.tag, (char*)"no auth");
 		break;
 	case TAttach:
 		get4(msg, index, ifcall.fid);

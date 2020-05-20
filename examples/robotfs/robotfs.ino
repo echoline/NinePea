@@ -212,11 +212,11 @@ fs_read(Fcall *ifcall, unsigned char *out) {
   }
   else if (((unsigned long)cur->data) == Qleft) {
     snprintf((char*)out, MAX_IO - 1, "%d\n", Mleft);
-    ofcall.count = strlen(out);
+    ofcall.count = strlen((const char*)out);
   } 
   else if (((unsigned long)cur->data) == Qright) {
     snprintf((char*)out, MAX_IO - 1, "%d\n", Mright);
-    ofcall.count = strlen(out);
+    ofcall.count = strlen((const char*)out);
   }
   else {
     ofcall.type = RError;
@@ -237,7 +237,7 @@ fs_create(Fcall *ifcall) {
 Fcall*
 fs_write(Fcall *ifcall, unsigned char *in) {
   struct hentry *cur = fs_fid_find(ifcall->fid);
-  char *ep = &in[ifcall->count];
+  char *ep = (char*)&in[ifcall->count];
 
   ofcall.count = ifcall->count;
 
@@ -250,11 +250,11 @@ fs_write(Fcall *ifcall, unsigned char *in) {
     ofcall.ename = Eperm;
   }
   else if (((unsigned long)cur->data) == Qleft) {
-    Mleft = strtod(in, &ep);
+    Mleft = strtod((const char*)in, &ep);
     motors(LEFT);
   } 
   else if (((unsigned long)cur->data) == Qright) {
-    Mright = strtod(in, &ep);
+    Mright = strtod((const char*)in, &ep);
     motors(RIGHT);
   }
   else {
@@ -325,8 +325,8 @@ setup()
 }
 
 unsigned char msg[MAX_MSG+1];
-unsigned int msglen = 0;
-unsigned int r = 0;
+unsigned long msglen = 0;
+unsigned long r = 0;
 
 void
 loop()
