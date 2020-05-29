@@ -30,8 +30,8 @@
 	get4(buffer, index, hvalue); \
 
 // might have to change these depending on memory allocated
-#define MAX_IO 512	// blatant lie?
-#define MAX_MSG 512+128
+#define MAX_IO 4096	// blatant lie?
+#define MAX_MSG MAX_IO+128
 #define MAX_WELEM 16
 #define MAX_PGMBUF 80
 #define NOTAG ~0
