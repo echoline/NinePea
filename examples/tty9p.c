@@ -49,7 +49,15 @@ main(int argc, char **argv)
 
 	cfsetspeed(&tty, B115200);
 	tty.c_cflag &= ~PARENB;
+	tty.c_cflag &= ~CSTOPB;
+        tty.c_cflag &= ~CSIZE;
 	tty.c_cflag |= CS8;
+        tty.c_cflag &= ~CRTSCTS;
+        tty.c_cc[VMIN] = 1;
+        tty.c_cc[VTIME] = 5;
+        tty.c_cflag |= CREAD | CLOCAL;
+        cfmakeraw(&tty);
+        tcflush(fd, TCIFLUSH);
 
 	if (tcsetattr(fd, TCSANOW, &tty) != 0)
 		exit(-3);
