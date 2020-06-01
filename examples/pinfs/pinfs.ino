@@ -211,7 +211,7 @@ fs_create(Fcall *ifcall) {
 Fcall*
 fs_write(Fcall *ifcall, unsigned char *in) {
   struct hentry *cur = fs_fid_find(ifcall->fid);
-  int i;
+  int i, j;
 
   ofcall.count = ifcall->count;
 
@@ -224,11 +224,18 @@ fs_write(Fcall *ifcall, unsigned char *in) {
     ofcall.ename = Eperm;
   }
   else if (((unsigned long)cur->data) > 0 && ((unsigned long)cur->data) <= NUM_DIGITAL_PINS) {
-    i = (unsigned long)cur->data;
-    pinMode(i - 1, OUTPUT);
-    digitalWrite(i - 1, in[0] == '1'? HIGH: LOW);
+    i = ((unsigned long)cur->data) - 1;
+    if (strcmp((const char*)in, "1\n") == 0)
+      j = HIGH;
+    else if (strcmp((const char*)in, "0\n") == 0)
+      j = LOW;
+    else
+      goto WRITEERROR;
+    pinMode(i, OUTPUT);
+    digitalWrite(i, j);
   }
   else {
+WRITEERROR:
     ofcall.type = RError;
     ofcall.ename = Eperm;
   }
