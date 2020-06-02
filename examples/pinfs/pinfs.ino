@@ -258,7 +258,10 @@ fs_flush(Fcall *ifcall) {
 
 Fcall*
 fs_wstat(Fcall *ifcall) {
-  return ifcall;
+  ofcall.type = RError;
+  ofcall.ename = Eperm;
+
+  return &ofcall;
 }
 
 Callbacks callbacks;

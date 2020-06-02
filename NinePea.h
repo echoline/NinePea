@@ -197,7 +197,7 @@ typedef struct {
 	Fcall* (*wstat)(Fcall*);
 } Callbacks;
 
-int putstat(unsigned char *buffer, unsigned long index, Stat *stat);
+unsigned long putstat(unsigned char *buffer, unsigned long index, Stat *stat);
 unsigned long proc9p(unsigned char *msg, unsigned long size, Callbacks *cb);
 
 /* fid mapping functions */

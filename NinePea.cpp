@@ -25,7 +25,7 @@ mkerr(unsigned char *buffer, unsigned char tag, char *errstr) {
 	return size;
 }
 
-int
+unsigned long
 putstat(unsigned char *buffer, unsigned long index, Stat *stat) {
 	unsigned int namelen = strlen(stat->name);
 	unsigned int uidlen = strlen(stat->uid);
@@ -64,7 +64,7 @@ putstat(unsigned char *buffer, unsigned long index, Stat *stat) {
 	return (size + 2);
 }
 
-int
+unsigned long
 getstat(unsigned char *buffer, unsigned long index, Stat *stat) {
 	unsigned int size;
 	unsigned long tmp;
@@ -77,7 +77,7 @@ getstat(unsigned char *buffer, unsigned long index, Stat *stat) {
 
 	get2(buffer, index, stat->type);
 	get4(buffer, index, stat->dev);
-	buffer[index++] = stat->qid.type;
+	stat->qid.type = buffer[index++];
 	get4(buffer, index, stat->qid.version);
 	get8(buffer, index, stat->qid.path, tmp);
 	get4(buffer, index, stat->mode);
@@ -374,23 +374,25 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
 
 		break;
 	case TWStat:
-#if 0
 		get4(msg, index, ifcall.fid);
-		index = getstat(msg, index, &ifcall.stat);
+		get2(msg, index, slen);
+		index = getstat(msg, index, &ifcall.st);
 
 		ofcall = cb->wstat(&ifcall);
 
-		free (ifcall.stat.name);
-		free (ifcall.stat.uid);
-		free (ifcall.stat.gid);
-		free (ifcall.stat.muid);
+		free (ifcall.st.name);
+		free (ifcall.st.uid);
+		free (ifcall.st.gid);
+		free (ifcall.st.muid);
 		
-		if (ofcall->type == RError)
+		if (ofcall->type == RError) {
 			index = mkerr(msg, ifcall.tag, ofcall->ename);
-		else
-			index = puthdr(msg, 0, RWStat, ifcall.tag, 7);
+
+			break;
+		}
+
+		index = puthdr(msg, 0, RWStat, ifcall.tag, 7);
 		break;
-#endif
 	default:
 		index = mkerr(msg, ifcall.tag, Ebadtype);
 		break;
