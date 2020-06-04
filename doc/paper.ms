@@ -12,11 +12,11 @@ is a tiny 9P library specifically for use with Arduino Mega boards.
 Introduction
 .PP
 .I NinePea
-was originally a project for Arduino.  It implements the 9P protocol for servers running on the Arduino board.  Compared to other 9P libraries it is more compact, sacrificing a lot of features they would have.  It only supports the 9P2000 version of 9P and does not support auth.  It does not do much error checking.
+was originally a project for Arduino.  It implements the 9P protocol for servers running on the Arduino board.  Compared to other 9P libraries it is more compact, sacrificing a lot of features they would have.  It only supports the 9P2000 version of 9P and does not support auth.  It does not do much error checking, and is only meant to be used locally.
 .NH
 What are synthetic filesystems?
 .PP
-Most people who have used a modern computer are familiar with what a JPEG file is.  It's a picture in storage, you can open it, delete it, etc.  A synthetic file is a file created on the fly. Imagine you open a JPEG and it's the most recent image from a webcam.  An implementation of exactly this is V4LFS for Linux which uses NinePea directly.  It layers NinePea over Linux's video4linux subsystem for webcams.  It presents only one synthetic file, jpeg, which is a synthetic jpeg of the most recent image from the webcam.  Linux users may be familiar with the /proc filesystem which is a synthetic filesystem from the Linux kernel exposing information about running processes and other system information.  These files are not stored anywhere on the computer, they are generated on the fly by the system as the user opens and uses them.
+Most people who have used a modern computer are familiar with what a JPEG file is.  It's a picture in storage, you can open it, delete it, etc.  A synthetic file is a file created on the fly. Imagine you open a JPEG and it's the most recent image from a webcam.  An implementation of exactly this is V4LFS for Linux which uses NinePea directly.  It layers NinePea over Linux's video4linux subsystem for webcams.  It presents only one synthetic file, jpeg, which is a synthetic jpeg from the webcam.  Linux users may be familiar with the /proc filesystem which is a synthetic filesystem from the Linux kernel exposing information about running processes and other system information.  These files are not stored anywhere on the computer, they are generated on the fly by the system as the user opens and uses them.
 .NH
 What is 9P?
 .PP
@@ -38,7 +38,7 @@ This is how it would work on Unix.  Plan 9 goes ahead and writes 9P directly to 
 What is NinePea?
 .PP
 .I NinePea
-is a very compact 9P server library intended for use with Arduino Megas.  Almost everything runs on the Atmega chip on the Arduino board.  9P typically has a maximum of 8 KB per message, and these chips have only 8 KB of RAM.  Linux's 9P support has a minimum of 4 KB message size supported, which barely fits here.  On a Linux computer the included tty9p program ensures that an entire 9P message is sent or received at a time, but other than that everything runs on the Arduino.  Basically the serial port becomes a 9P fileserver endpoint.  Here is a use case on Linux using the 9mount convenience program and netcat to listen on TCP/IP:
+is a very compact 9P server library intended for use with Arduino Megas.  Almost everything runs on the Atmega chip on the Arduino board.  9P typically has a maximum of 8 KB per message, and these chips have only 8 KB of RAM.  Linux's 9P support has a minimum of 4 KB message size supported, which barely fits here.  On a Linux computer the included tty9p program ensures that an entire 9P message is sent or received at a time, but other than that everything runs on the Arduino.  Basically the serial port becomes a 9P fileserver endpoint.  Here is a usage case on Linux using the 9mount convenience program and netcat to listen on TCP/IP:
 .P1
 $ mkfifo pipe
 $ ./tty9p /dev/ttyUSB0 < pipe | nc -l -p 2000 >> pipe &
@@ -50,7 +50,7 @@ d02 d07 d12 d17 d22 d27 d32 d37 d42 d47 d52 d57 d62 d67
 d03 d08 d13 d18 d23 d28 d33 d38 d43 d48 d53 d58 d63 d68
 d04 d09 d14 d19 d24 d29 d34 d39 d44 d49 d54 d59 d64 d69
 .P2
-This is the pinfs example running on the Arduino.  The user can write a 1 or 0 to d13 to turn on or off the LED on the Arduino board, and can read any of the 70 files to read the digital I/O state of any pin.
+This is the pinfs example running on the Arduino.  The user can write a 1 or 0 to d13 to turn on or off the LED on the Arduino board, and can read or write any of the 70 files to access the digital I/O state of any pin.
 .NH
 Conclusion
 .PP
