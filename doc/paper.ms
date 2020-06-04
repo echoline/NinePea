@@ -14,6 +14,10 @@ Introduction
 .I NinePea
 was originally a project for Arduino.  It implements the 9P protocol for servers running on the Arduino board.  Compared to other 9P libraries it is more compact, sacrificing a lot of features they would have.  It only supports the 9P2000 version of 9P and does not support auth.  It does not do much error checking.
 .NH
+What are synthetic filesystems?
+.PP
+Most people who have used a modern computer are familiar with what a JPEG file is.  It's a picture in storage, you can open it, delete it, etc.  A synthetic file is a file created on the fly. Imagine you open a JPEG and it's the most recent image from a webcam.  An implementation of exactly this is V4LFS for Linux which uses NinePea directly.  It layers NinePea over Linux's video4linux subsystem for webcams.  It presents only one synthetic file, jpeg, which is a synthetic jpeg of the most recent image from the webcam.  Linux users may be familiar with the /proc filesystem which is a synthetic filesystem from the Linux kernel exposing information about running processes and other system information.  These files are not stored anywhere on the computer, they are generated on the fly by the system as the user opens and uses them.
+.NH
 What is 9P?
 .PP
 9P is the protocol that makes Plan 9 beautiful.  It is a bytestream protocol for filesystem implementation.  It's more of an API than a filesystem in a more traditional sense.  It boils the concept of a file down to a bytestream.  A file is simply a system object that can be opened, closed, read from, written to, etc.  On more traditional systems a file is usually some data which is stored.  On Unix, one of the design principles was that "everything is a file."  Data are files on storage, but devices are also files.  In /dev there are device files such as the disks, keyboard, or a webcam.  In /proc there are files representing information about running processes.  9P extends this concept.  It is a bytestream which can be transported in any way, over TCP/IP, inside another file, or in this case over the serial port.  The Plan 9 manual page section 5 describes 9P in detail and all of the messages that can be in the bytestream.
@@ -47,3 +51,9 @@ d03 d08 d13 d18 d23 d28 d33 d38 d43 d48 d53 d58 d63 d68
 d04 d09 d14 d19 d24 d29 d34 d39 d44 d49 d54 d59 d64 d69
 .P2
 This is the pinfs example running on the Arduino.  The user can write a 1 or 0 to d13 to turn on or off the LED on the Arduino board, and can read any of the 70 files to read the digital I/O state of any pin.
+.NH
+Conclusion
+.PP
+The
+.I NinePea
+library can be copied easily for use on other systems.  V4LFS is an example for Linux available at https://github.com/echoline/v4lfs.  NinePea with a couple examples for Arduino Megas is available at https://github.com/echoline/NinePea.  9P and Plan 9 are fantastic software engineering, and exploring them can only help anyone interested in developing for a Unix-type system.
