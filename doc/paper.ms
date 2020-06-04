@@ -52,6 +52,23 @@ d04 d09 d14 d19 d24 d29 d34 d39 d44 d49 d54 d59 d64 d69
 .P2
 This is the pinfs example running on the Arduino.  The user can write a 1 or 0 to d13 to turn on or off the LED on the Arduino board, and can read or write any of the 70 files to access the digital I/O state of any pin.
 .NH
+Other Uses
+.PP
+.I NinePea
+was originally meant for use on Arduino boards.  It could be made to work with a wifi shield to present a slow ethernet device for Plan 9 without writing any drivers.  One could add a speaker and have a simple audio device.  Arduino is meant for electronics prototyping, and although
+.I NinePea
+only builds under the Arduino IDE, once the board is configured and programmed as desired it can be plugged into a Plan 9 system and mounted like any other 9P server.  It can be used to gather information from I2C or SPI sensors, to construct or read a signal, or for many other electronics prototyping applications.
+.I NinePea
+is also flexible, the Arduino library is labelled a C++ file but it's really just portable C.  It's just a header and a C file that can be included with a project for simple 9P support.  It does have some drawbacks, it isn't meant to be public-facing.  It doesn't do authentication and it barely does any error checking.  The V4LFS program shows how it can be included and used on Linux to wrap a webcam as a synthetic JPEG file.
+.NH
+Performance of 9P
+.PP
+One interesting use of NinePea was binding the drawterm network stack on the Linux machine it was plugged into over /net of a computer across the country and mounting
+.I NinePea
+remotely.  After doing so, writing a 0 or 1 across the country and back takes almost a full second of 9P traffic back and forth.  9P has a lot of overhead of messages going back and forth besides the data inside it.  In this case only one byte was being sent, but the overhead of 9P and the Internet across the country and back caused the data to take quite a long time to be sent out across the Internet, return, and finally go out on the 115200 baud serial port.  The serial port was not the main bottleneck in this case.  9P is very slow over long distances because of all the overhead going back and forth for each operation.  Mounting 
+.I NinePea
+locally on the Linux computer, the main bottleneck as expected was the serial port itself, sending 9P back and forth as quickly as it could.  The Arduino has an LED on digital pin 13 and LEDs for serial recieve and transmit, and when it was mounted locally the LEDs for the serial port stayed on continuously by visual inspection, whereas when mounted remotely there was a visible delay as each 9P message was received and replied to.
+.NH
 Conclusion
 .PP
 The
