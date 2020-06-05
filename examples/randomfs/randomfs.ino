@@ -179,9 +179,12 @@ fs_read(Fcall *ifcall, unsigned char *out) {
   else if (((unsigned long)cur->data) == Qrandom) {
     for (j = A0; j < (NUM_ANALOG_INPUTS + A0); j++) {
       i = analogRead(j) ^ millis();
-      snprintf((char*)(&out[j - A0]), MAX_IO - 1 - (j - A0), "%c", i & 0xFF);
-      ofcall.count = strlen((const char*)out);
+      out[j - A0] = i & 0xFF;
     }
+    out[NUM_ANALOG_INPUTS] = '\0';
+    ofcall.count = strlen((const char*)out);
+    if (ofcall.count > ifcall->count)
+      ofcall.count = ifcall->count;
   }
   else {
     ofcall.type = RError;
