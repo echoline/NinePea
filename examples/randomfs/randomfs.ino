@@ -182,6 +182,7 @@ fs_read(Fcall *ifcall, unsigned char *out) {
       snprintf((char*)(&out[j - A0]), MAX_IO - 1 - (j - A0), "%c", i & 0xFF);
       ofcall.count = strlen((const char*)out);
     }
+  }
   else {
     ofcall.type = RError;
     ofcall.ename = Enofile;
