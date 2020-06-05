@@ -115,7 +115,7 @@ is also flexible, the Arduino library is labelled a C++ file but it's really jus
 .NH
 Performance of 9P
 .PP
-One interesting use of
+This is an example of the pinfs sketch.  One interesting use of
 .I NinePea
 was binding the drawterm network stack on the Linux machine it was plugged into over /net of a computer across the country and mounting
 .I NinePea
