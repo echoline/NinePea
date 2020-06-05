@@ -78,6 +78,32 @@ d04 d09 d14 d19 d24 d29 d34 d39 d44 d49 d54 d59 d64 d69
 .P2
 This is the pinfs example running on the Arduino.  The user can write a 1 or 0 to d13 to turn on or off the LED on the Arduino board, and can read or write any of the 70 files to access the digital I/O state of any pin.
 .NH
+Another Example
+.PP
+Another example of
+.I NinePea
+is the randomfs sketch for Arduino.  It presents one file,
+.CW random,
+which can be mounted over
+.CW /dev
+to replace Plan 9's
+.CW /dev/random.
+This sketch is a bare example of a 9P fileserver, it only presents one file.  On read it reads each of the 16 analog inputs on the Arduino Mega:
+.P1
+(analogRead(pin) ^ millis()) & 0xFF
+.P2
+and outputs a byte for each.  This file can be bound before
+.CW /dev/random
+to replace it with the random number generation from the Arduino.
+.CW AnalogRead(pin)
+returns the ambient voltage on that pin which is XOR'ed with
+.CW millis()
+and finally the lower byte is returned.
+.CW Millis()
+in this case has a period of .256 milliseconds, and the ambient voltage is similar on each pin, so the randomness isn't as good as without a cryptographically secure generator.  However, the manual page for
+.CW /dev/random
+specifically says it is only to be used on Plan 9 as a seed for better pseudo-random number generators in the programs themselves.  Using it over the internet also slows it down, so each collection of bytes gives better randomness.
+.NH
 Other Uses
 .PP
 .I NinePea
