@@ -149,10 +149,7 @@ Fcall*
 fs_read(Fcall *ifcall, unsigned char *out) {
   struct hentry *cur = fs_fid_find(ifcall->fid);
   Stat stat;
-  char tmpstr[32];
   unsigned long i, j;
-  unsigned long value;
-  double d, x;
 
   if (cur == NULL) {
     ofcall.type = RError;
@@ -180,23 +177,11 @@ fs_read(Fcall *ifcall, unsigned char *out) {
     ofcall.count = putstat(out, 0, &stat);
   }
   else if (((unsigned long)cur->data) == Qrandom) {
-    i = 0;
-    for (j = A0; j < ((NUM_ANALOG_INPUTS>>1) + A0); j++) {
-      i ^= analogRead(j) ^ millis();
+    for (j = A0; j < (NUM_ANALOG_INPUTS + A0); j++) {
+      i = analogRead(j) ^ millis();
+      snprintf((char*)(&out[j - A0]), MAX_IO - 1 - (j - A0), "%c", i & 0xFF);
+      ofcall.count = strlen((const char*)out);
     }
-    i += 4096;
-    value = 0;
-    for (j = (NUM_ANALOG_INPUTS>>1) + A0; j < (NUM_ANALOG_INPUTS + A0); j++) {
-      value ^= analogRead(j) ^ millis();
-    }
-    d = i / 255.0;
-    x = value / 65535.0;
-    for (j = 0; j < ifcall->count; j++) {
-      snprintf((char*)out + j, MAX_IO - 1 - j, "%c", (int)(x * 255.0));
-      x = d * x * (1.0 - x);
-    }
-    ofcall.count = ifcall->count;
-  }
   else {
     ofcall.type = RError;
     ofcall.ename = Enofile;
