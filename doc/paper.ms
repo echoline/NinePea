@@ -116,7 +116,7 @@ The
 library can be copied easily for use on other systems.  V4LFS is an example for Linux available at
 .CW https://github.com/echoline/v4lfs.
 .I NinePea
-with a couple more examples for Arduino Megas are available at the link
+with a few more examples for Arduino Megas are available at the link
 .CW https://github.com/echoline/NinePea.
 9P and Plan 9 are fantastic software engineering, and exploring them can only help anyone interested in developing for a Unix-type system.
 .NH
