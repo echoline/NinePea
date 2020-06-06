@@ -1,6 +1,6 @@
 .HTML "NinePea - A tiny 9P library
 .TL
-NinePea \(em A Small 9P Library for Arduino, Unix and Plan 9
+NinePea \(em A Small 9P Library for Arduino and Plan 9
 .AU
 Eli Cohen
 echoline@gmail.com
