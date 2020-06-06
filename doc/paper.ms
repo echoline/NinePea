@@ -88,19 +88,20 @@ which can be mounted over
 .CW /dev
 to replace Plan 9's
 .CW /dev/random.
-This sketch is a bare example of a 9P fileserver, it only presents one file.  On read it reads each of the 16 analog inputs on the Arduino Mega:
+This sketch is a bare example of a 9P fileserver, it only presents one file.  On read it reads each of the 16 analog inputs on the Arduino Mega and XORs them with the system milliseconds counter:
 .P1
-(analogRead(pin) ^ millis()) & 0xFF
+seed <<= 8;
+seed ^= analogRead(pin) ^ millis();
 .P2
-and outputs a byte for each.  This file can be bound before
+to seed a 32-bit XOR shift pseudo-random number generator.  The file it presents can be bound before
 .CW /dev/random
 to replace it with the random number generation from the Arduino.
 .CW AnalogRead(pin)
 returns the ambient voltage on that pin which is XOR'ed with
 .CW millis()
-and finally the lower byte is returned.
+which is used as the seed for a simple PRNG.
 .CW Millis()
-in this case has a period of .256 milliseconds, and the ambient voltage is similar on each pin, so the randomness isn't as good as without a cryptographically secure generator.  However, the manual page for
+returns the number of milliseconds the Arduino has been booted, and the ambient voltage is similar on each pin, so the randomness probably isn't as good as it would be with a cryptographically secure generator.  However, the manual page for
 .CW /dev/random
 specifically says it is only to be used on Plan 9 as a seed for better pseudo-random number generators in the programs themselves.  Using it over the internet also slows it down, so each collection of bytes gives better randomness.
 .NH
