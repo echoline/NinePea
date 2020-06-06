@@ -291,13 +291,6 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
 			break;
 		}
 
-		// No response
-		if (ofcall == NULL) {
-			index = 0;
-
-			break;
-		}
-
 		index = puthdr(msg, 0, RRead, ifcall.tag, 11 + ofcall->count);
 		put4(msg, index, ofcall->count);
 		index += ofcall->count;
