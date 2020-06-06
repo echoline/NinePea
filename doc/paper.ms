@@ -90,8 +90,10 @@ to replace Plan 9's
 .CW /dev/random.
 This sketch is a bare example of a 9P fileserver, it only presents one file.  On read it reads each of the 16 analog inputs on the Arduino Mega and XORs them with the system milliseconds counter:
 .P1
-seed <<= 8;
-seed ^= analogRead(pin) ^ millis();
+for (pin = A0; pin < (NUM_ANALOG_INPUTS + A0); pin++) {
+	seed <<= 1;
+	seed ^= analogRead(pin) ^ millis();
+}
 .P2
 to seed a 32-bit XOR shift pseudo-random number generator.  The file it presents can be bound before
 .CW /dev/random
