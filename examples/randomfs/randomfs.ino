@@ -179,7 +179,7 @@ fs_read(Fcall *ifcall, unsigned char *out) {
   else if (((unsigned long)cur->data) == Qrandom) {
     i = 0;
     for (j = A0; j < (NUM_ANALOG_INPUTS + A0); j++) {
-      i <<= 8;
+      i <<= 1;
       i ^= analogRead(j) ^ millis();
     }
     for (j = 0; j < ifcall->count; j++) {
