@@ -6,7 +6,7 @@ Eli Cohen
 echoline@gmail.com
 .AB
 .I NinePea
-is a tiny 9P library specifically designed for use with Arduino Mega boards.
+is a tiny 9P library specifically designed for use with Arduino Mega boards connected to Unix-like operating systems and Plan 9.
 .AE
 .NH
 Introduction
@@ -26,6 +26,16 @@ which is a synthetic jpeg from the webcam.  Linux users may be familiar with the
 .CW /proc
 filesystem which is a synthetic filesystem from the Linux kernel exposing information about running processes and other system information.  These files are not stored anywhere on the computer, they are generated on the fly by the system as the user opens and uses them.
 .NH
+Unix Design Philosophy
+.PP
+There are several key ideas behind the design of a truly Unix-like operating system.  Everything is a file.  The screen, keyboard, and mouse are represented in the
+.CW /dev
+directory by special device files.  Programs are small, they do one thing each and do it well.  The programs each handle one part of a task and are used together through standard input/output in scripts.  A lot of these principles have fallen by the wayside in modern Unix-like operating systems.  GNU ls has code in it to arrange the listings in columns.  On a truly Unix-like OS, ls just lists the files in a directory, and a separate program arranges the listings into columns.  Plan 9 still does it this way.  It's often less efficient for the computer to handle, but that's how Unix works.  Efficiency is not the main goal.  Simplicity of design, interoperability of component parts, and flexibility of use are the goals of a Unix-like OS.
+.NH
+Arduino Boards
+.PP
+Arduinos are simple open-source electronics prototyping boards.  Arduino started with simple Atmel AVR chips.  The Arduino Mega 2560 is based around an Atmega2560 chip, a programmable MCU with only 8 KB RAM, 256 KB of programmable flash, and 4 KB of EEPROM storage.  It has 16 analog-to-digital inputs, 70 pins that can be used for digital I/O, and a lot of other functionality for prototyping. These boards can drive pulse-width modulation signals, be used as controllers for SPI or I2C, and have 4 TTL serial ports.  The Arduino project also encompasses a simple IDE in Java, which compiles C++ sketches to software for the AVR chip.  This of course doesn't run on Plan 9, at least at the time of this writing.  Plan 9 doesn't support Java or C++, or even the USB-to-serial chip the Arduino Mega 2560 uses.  All of these examples were compiled, uploaded, and used on Linux.
+.NH
 What is 9P?
 .PP
 9P is the protocol that makes Plan 9 beautiful.  It is a bytestream protocol for filesystem implementation.  9P is a stream of bytes representing filesystem opens, read, deletions, etc.  It's more of an API than a filesystem in a more traditional sense.  It boils the concept of a file down to a bytestream.  A file is simply a system object that can be opened, closed, read from, written to, etc.  On more traditional systems a file is usually some data which is stored.  On Unix, one of the design principles was that "everything is a file."  Data are files on storage, but devices are also files.  In
@@ -34,7 +44,9 @@ there are device files such as the disks, keyboard, or a webcam.  Some files are
 .NH
 What is Plan 9?
 .PP
-Plan 9 is a 9P multiplexer and not much else.  On Plan 9 everything is a file more than on a Unix system even, and 9P is the mechanism which allows this.  9P is used to share files over the network like NFS does, but also internally.  On Plan 9 the kernel exports 9P filesystems such as
+Plan 9 is a 9P multiplexer and not much else.  On Plan 9 everything is a file more than on a Unix system even, and 9P is the mechanism which allows this.  9P is used to share files over the network like NFS does, but also internally.  On Plan 9 there is no single root directory.  The root directory is a container, or namespace, different for different processes.  The kernel exports a root of 9P filesystems from drivers at locations starting with
+.CW #,
+such as
 .CW #p
 for proc and
 .CW #A
@@ -59,7 +71,7 @@ Many people new to Plan 9 from Unix have all made the mistake of running:
 .P1
 mount /dev/dospartition /n/dos
 .P2
-This is how it would work on Unix.  Plan 9 goes ahead and writes 9P directly to the start of the DOS partition, corrupting the storage.  Plan 9 truly adheres to the Unix design principle of giving the user plenty of rope to do anything with, including making mistakes.  Everything is comprised of simple system components with interoperable bytestreams.
+This is how it would work on Unix.  Plan 9 goes ahead and writes 9P directly to the start of the DOS partition, corrupting the storage.  Plan 9 truly adheres to the Unix design principle of giving the user plenty of rope to do anything with, including making catastrophic mistakes.  Everything is comprised of simple system components with interoperable bytestreams.
 .NH
 What is NinePea?
 .PP
@@ -76,7 +88,7 @@ d02 d07 d12 d17 d22 d27 d32 d37 d42 d47 d52 d57 d62 d67
 d03 d08 d13 d18 d23 d28 d33 d38 d43 d48 d53 d58 d63 d68
 d04 d09 d14 d19 d24 d29 d34 d39 d44 d49 d54 d59 d64 d69
 .P2
-This is the pinfs example running on the Arduino.  The user can write a 1 or 0 to d13 to turn on or off the LED on the Arduino board, and can read or write any of the 70 files to access the digital I/O state of any pin.
+This is the pinfs example running on the Arduino.  First a fifo pipe is made with the standard mkfifo command.  The tty9p utility is used to packetize the 9P messages on the serial port, and it is looped through the fifo pipe and netcat to listen on TCP port 2000.  9mount is a convenience program for making 9P mounting simpler on Linux, and here it is being used to mount the serial port through the above command.  Then the filesystem can just be accessed with the standard Linux tools.  Shown here is a listing of all the synthetic files being generated by the Arduino board.  This example is running on Linux, but a Plan 9 computer can easily mount the service on the Linux computer over TCP.  The user can write a 1 or 0 to d13 to turn on or off the LED on the Arduino board, and can read or write any of the 70 files to access the digital I/O state of any pin.
 .NH
 Another Example
 .PP
