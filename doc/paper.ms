@@ -67,11 +67,11 @@ which can be mounted with the 9P-speaking Plan 9 mount command.  Mount doesn't a
 dossrv
 mount /srv/dos /n/dos /dev/dospartition
 .P2
-Many people new to Plan 9 from Unix have all made the mistake of running:
+Many people new to Plan 9 from Unix have made the mistake of running:
 .P1
 mount /dev/dospartition /n/dos
 .P2
-This is how it would work on Unix.  Plan 9 goes ahead and writes 9P directly to the start of the DOS partition, corrupting the storage.  Plan 9 truly adheres to the Unix design principle of giving the user plenty of rope to do anything with, including making catastrophic mistakes.  Everything is comprised of simple system components with interoperable bytestreams.
+This is how it would work on Unix.  Plan 9 commands share names but sometimes work differently.  In this case, Plan 9 writes 9P directly to the start of the DOS partition, corrupting the storage.  Plan 9 truly adheres to the Unix design principle of giving the user plenty of rope to do anything with, including making catastrophic mistakes.  Everything is comprised in a powerful paradigm of simple system components with interoperable bytestreams.
 .NH
 What is NinePea?
 .PP
