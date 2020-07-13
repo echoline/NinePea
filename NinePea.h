@@ -1,8 +1,14 @@
 #ifndef NINEPEA_H
 #define NINEPEA_H
 
+#ifdef Plan9
+#include <u.h>
+#include <libc.h>
+#define NULL nil
+#else
 #include <string.h>
 #include <stdlib.h>
+#endif
 
 #define put2(buffer, index, value) \
 	buffer[index++] = value & 0xFF; \
@@ -67,7 +73,7 @@ enum {
 	TWStat = 126,
 	RWStat,
 };
-
+#ifndef Plan9
 /* bits in Qid.type */
 enum {
 	QTDIR	= 0x80,	/* type bit for directories */
@@ -109,6 +115,7 @@ typedef struct {
 	unsigned long	version;
 	unsigned long	path;
 } Qid;
+#endif
 
 typedef struct {
 	unsigned int	type;

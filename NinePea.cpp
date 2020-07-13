@@ -38,7 +38,7 @@ putstat(unsigned char *buffer, unsigned long index, Stat *stat) {
 	put2(buffer, index, stat->type);
 	put4(buffer, index, stat->dev);
 	buffer[index++] = stat->qid.type;
-	put4(buffer, index, stat->qid.version);
+	put4(buffer, index, 0);
 	put8(buffer, index, stat->qid.path, 0);
 	put4(buffer, index, stat->mode);
 	put4(buffer, index, stat->atime);
@@ -78,7 +78,7 @@ getstat(unsigned char *buffer, unsigned long index, Stat *stat) {
 	get2(buffer, index, stat->type);
 	get4(buffer, index, stat->dev);
 	stat->qid.type = buffer[index++];
-	get4(buffer, index, stat->qid.version);
+	index += 4; //get4(buffer, index, 0);
 	get8(buffer, index, stat->qid.path, tmp);
 	get4(buffer, index, stat->mode);
 	get4(buffer, index, stat->atime);
@@ -184,7 +184,7 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
 
 		index = 7;
 		msg[index++] = ofcall->qid.type;
-		put4(msg, index, ofcall->qid.version);
+		put4(msg, index, 0); //ofcall->qid.version);
 		put8(msg, index, ofcall->qid.path, 0);
 		puthdr(msg, 0, RAttach, ifcall.tag, index);
 
@@ -222,7 +222,7 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
 
 		for (i = 0; i < ofcall->nwqid; i++) {
 			msg[index++] = ofcall->wqid[i].type;
-			put4(msg, index, ofcall->wqid[i].version);
+			index += 4; //put4(msg, index, ofcall->wqid[i].version);
 			put8(msg, index, ofcall->wqid[i].path, 0);
 		}
 
@@ -272,7 +272,7 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
 
 		index = puthdr(msg, 0, ROpen, ifcall.tag, 24);
 		msg[index++] = ofcall->qid.type;
-		put4(msg, index, ofcall->qid.version);
+		index += 4; //put4(msg, index, ofcall->qid.version);
 		put8(msg, index, ofcall->qid.path, 0);
 		put4(msg, index, MAX_IO);
 
@@ -315,7 +315,7 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
 
 		index = puthdr(msg, 0, RCreate, ifcall.tag, 24);
 		msg[index++] = ofcall->qid.type;
-		put4(msg, index, ofcall->qid.version);
+		index += 4; //put4(msg, index, ofcall->qid.version);
 		put8(msg, index, ofcall->qid.path, 0);
 		put4(msg, index, MAX_IO);
 
@@ -471,7 +471,7 @@ fs_fid_del(unsigned long id) {
 
 void
 fs_fid_init(int l) {
-	fs_fids = (htable*)malloc(sizeof(htable));
+	fs_fids = (struct htable*)malloc(sizeof(struct htable));
 	fs_fids->length = l;
-	fs_fids->data = (hentry**)calloc(fs_fids->length, sizeof(hentry*));
+	fs_fids->data = (struct hentry**)calloc(fs_fids->length, sizeof(struct hentry*));
 }
