@@ -1,4 +1,4 @@
-# well, what the hell...
+# C++ as C for -D Plan9
 </$objtype/mkfile
 
 all: NinePea.$O doc/paper.pdf
