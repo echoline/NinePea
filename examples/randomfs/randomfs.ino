@@ -145,11 +145,40 @@ fs_open(Fcall *ifcall) {
   return &ofcall;
 }
 
+#define ROTATE(v,c) ((unsigned long)((v) << (c)) | ((v) >> (32 - (c))))
+
+#define QUARTERROUND(ia,ib,ic,id) { \
+  unsigned long a, b, c, d, t; \
+  a = x[ia]; b = x[ib]; c = x[ic]; d = x[id]; \
+  a += b; t = d^a; d = ROTATE(t,16); \
+  c += d; t = b^c; b = ROTATE(t,12); \
+  a += b; t = d^a; d = ROTATE(t, 8); \
+  c += d; t = b^c; b = ROTATE(t, 7); \
+  x[ia] = a; x[ib] = b; x[ic] = c; x[id] = d; \
+}
+
+void
+_chachablock(unsigned long x[16], int rounds)
+{
+  for(; rounds > 0; rounds -= 2) {
+    QUARTERROUND(0, 4, 8,12)
+    QUARTERROUND(1, 5, 9,13)
+    QUARTERROUND(2, 6,10,14)
+    QUARTERROUND(3, 7,11,15)
+
+    QUARTERROUND(0, 5,10,15)
+    QUARTERROUND(1, 6,11,12)
+    QUARTERROUND(2, 7, 8,13)
+    QUARTERROUND(3, 4, 9,14)
+  }
+}
+
 Fcall*
 fs_read(Fcall *ifcall, unsigned char *out) {
   struct hentry *cur = fs_fid_find(ifcall->fid);
   Stat stat;
   unsigned long i, j, k;
+  unsigned long x[16];
 
   if (cur == NULL) {
     ofcall.type = RError;
@@ -177,18 +206,18 @@ fs_read(Fcall *ifcall, unsigned char *out) {
     ofcall.count = putstat(out, 0, &stat);
   }
   else if (((unsigned long)cur->data) == Qrandom) {
-    for (k = 0; k < ifcall->count; k++) {
-      i = 0;
+    for (i = 0; i < 16; i++) {
+      x[i] = 0;
       for (j = A0; j < (NUM_ANALOG_INPUTS + A0); j++) {
-        i <<= 1;
-        i ^= analogRead(j) ^ micros();
+        x[i] <<= 1;
+        x[i] ^= analogRead(j) ^ micros();
       }
-      for (j = (i >> 24) & 0xF; j > 0; j--) {
-        i ^= i << 17;
-        i ^= i >> 13;
-        i ^= i << 5;
-      }
-      out[k] = i & 0xFF;
+    }
+    for (k = 0; k < ifcall->count; k++) {
+      i = k & 15;
+      if (i == 0)
+        _chachablock(x, 20);
+      out[k] = x[i] & 0xFF;
     }
     ofcall.count = ifcall->count;
   }
