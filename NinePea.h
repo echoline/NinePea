@@ -214,6 +214,7 @@ struct hentry {
 	unsigned long data;
 	struct hentry *next;
 	struct hentry *prev;
+	void *aux;
 };
 
 struct htable {
