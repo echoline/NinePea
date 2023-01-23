@@ -32,7 +32,7 @@ Unix Design Philosophy
 .PP
 There are several key ideas behind the design of a truly Unix-like operating system.  Firstly, everything is a file.  The screen, keyboard, and mouse are represented in the
 .CW /dev
-directory by special device files.  Secondly, programs are small; they do one thing each and do it well.  The programs each handle one part of a task and are used together by piping the output of one program to the input of the next in scripts. Efficiency is not always the main goal.  Simplicity of design, interoperability of component parts, and flexibility of reuse are the goals of a truly Unix-like OS. Programs are simple filters from standard input to standard output and designed to be used in pipelines.
+directory by special device files.  Secondly, programs are small; they do one thing each and do it well.  The programs each handle one part of a task and are used together by piping the output of one program to the input of the next in scripts. Efficiency is not always the main goal.  Simplicity of design, interoperability of component parts, and flexibility of reuse are the goals of a truly Unix-like OS. Programs are simple filters from standard input to standard output and designed to be used in pipelines:
 .P1
 cat /dev/screen | topng > screenshot.png
 .P2
@@ -46,9 +46,9 @@ Arduinos are simple open-source electronics prototyping boards.  Arduino started
 .NH
 What is 9P?
 .PP
-9P is the protocol that makes Plan 9 beautiful engineering.  It is a bytestream protocol for filesystem implementation.  9P is a stream of bytes representing filesystem opens, read, deletions, etc.  It's more of an API than a filesystem in a more traditional sense.  It boils the concept of a file down to a bytestream.  A file is simply a system object that can be opened, closed, read, written, etc.  On more traditional systems a file is usually some data which is stored.  On Unix, one of the design principles was that "everything is a file."  Data are files on storage, but devices are also represented as files.  In
+9P is the protocol that makes Plan 9 beautiful engineering.  It is a bytestream protocol for filesystem implementation.  9P is a stream of bytes representing filesystem opens, reads, deletions, etc.  It's more of an API than a filesystem in a more traditional sense.  It refines the concept of a file to a standardized bytestream.  A file is simply a system object that can be opened, closed, read, written, etc.  On more traditional systems a file is usually some data which is stored.  On Unix, one of the design principles was that "everything is a file."  Data are files on storage, but devices are also represented as files.  In
 .CW /dev
-there are device files such as the disks, keyboard, or a webcam.  Some files are synthetically created on the fly, some are on storage.  Some are even remote. 9P extends this concept.  It is a bytestream which can be transported in any way, over TCP/IP, inside another file, or in this case over the serial port.  The Plan 9 manual page section 5 describes 9P in detail and all of the messages that can be in the bytestream.
+there are device files such as the disks, keyboard, or a webcam.  Some files are synthetically generated, some are on storage.  Some are even remote; on other systems, or an Arduino. 9P extends and refines the concept of a Unix-like filesystem.  It is a bytestream which can be transported in any way, over TCP/IP, inside another file, or in this case over the serial port.  The Plan 9 manual page section 5 describes 9P in detail and all of the messages that can be in the bytestream.
 .NH
 What is Plan 9?
 .PP
