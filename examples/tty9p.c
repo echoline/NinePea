@@ -77,8 +77,8 @@ main(int argc, char **argv)
 			inlen += 4;
 			write(1, in, inlen);
 			fflush(stdout);
-//			write(2, in, inlen);
-//			fflush(stderr);
+			write(2, in, inlen);
+			fflush(stderr);
 		}
 	}
 	else {
@@ -91,8 +91,8 @@ main(int argc, char **argv)
 				exits("readn out 2");
 			outlen += 4;
 			write(fd, out, outlen);
-//			write(2, out, outlen);
-//			fflush(stderr);
+			write(2, out, outlen);
+			fflush(stderr);
 		}
 	}
 }

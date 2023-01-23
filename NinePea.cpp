@@ -112,8 +112,8 @@ getstat(unsigned char *buffer, unsigned long index, Stat *stat) {
 	return index;
 }
 
-char Etoobig[] = "TMI";
-char Ebadtype[] = "9P?";
+char Etoobig[] = "bad count";
+char Ebadtype[] = "9P protocol botch";
 char Enofile[] = "file not found";
 char Eperm[] = "permission denied";
 
@@ -143,8 +143,8 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
 		get4(msg, i, ifcall.msize);
 		get2(msg, i, slen);
 
-		if (ifcall.msize > MAX_MSG)
-			ifcall.msize = MAX_MSG;
+		if (ifcall.msize > MAX_IO)
+			ifcall.msize = MAX_IO;
 
 		put4(msg, index, ifcall.msize);
 		put2(msg, index, slen);
@@ -283,7 +283,20 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
 		index += 4; // :(
 		get4(msg, index, ifcall.count);
 
+		if (ifcall.count > MAX_IO) {
+			index = mkerr(msg, ifcall.tag, Etoobig);
+
+			break;
+		}
+
 		ofcall = cb->read(&ifcall, &msg[11]);
+
+		if (ofcall->count > MAX_IO) {
+			index = mkerr(msg, ifcall.tag, Etoobig);
+
+			break;
+		}
+
 
 		if (ofcall->type == RError) {
 			index = mkerr(msg, ifcall.tag, ofcall->ename);
@@ -325,6 +338,12 @@ proc9p(unsigned char *msg, unsigned long size, Callbacks *cb) {
 		get4(msg, index, ifcall.offset);
 		index += 4; // bleh... again
 		get4(msg, index, ifcall.count);
+
+		if (ifcall.count > MAX_IO) {
+			index = mkerr(msg, ifcall.tag, Etoobig);
+
+			break;
+		}
 
 		ofcall = cb->write(&ifcall, &msg[index]);
 

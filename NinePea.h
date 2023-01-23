@@ -36,7 +36,7 @@
 	get4(buffer, index, hvalue); \
 
 // might have to change these depending on memory allocated
-#define MAX_IO 4096	// blatant lie?
+#define MAX_IO 2048
 #define MAX_MSG MAX_IO+128
 #define MAX_WELEM 16
 #define MAX_PGMBUF 80
@@ -206,6 +206,8 @@ typedef struct {
 
 unsigned long putstat(unsigned char *buffer, unsigned long index, Stat *stat);
 unsigned long proc9p(unsigned char *msg, unsigned long size, Callbacks *cb);
+int mkerr(unsigned char*, unsigned char, char*);
+int puthdr(unsigned char *buf, unsigned long index, unsigned char type, unsigned int tag, unsigned long size);
 
 /* fid mapping functions */
 
