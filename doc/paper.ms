@@ -16,7 +16,7 @@ was originally a project for Arduino.  It implements the 9P filesystem protocol 
 .NH
 What are synthetic filesystems?
 .PP
-Most people who have used a modern computer are familiar with what a JPEG file is.  It's a picture which is generally in disk storage. The user can open it, delete it, etc.  A synthetic file is a file created on the fly. Imagine opening a JPEG and it's the most recent image from a webcam.  An implementation of exactly this is
+Most people who have used a modern computer are familiar with what a JPEG file is.  It's a picture which is generally in disk storage. The user can open it, delete it, etc.  A synthetic file's contents are generated, rather than stored on disk. Imagine opening a JPEG and it's the most recent image from a webcam.  An implementation of exactly this is
 .CW V4LFS
 for Linux which uses
 .I NinePea
@@ -30,12 +30,15 @@ filesystem which is a synthetic filesystem from the Linux kernel exposing inform
 .NH
 Unix Design Philosophy
 .PP
-There are several key ideas behind the design of a truly Unix-like operating system.  Everything is a file.  The screen, keyboard, and mouse are represented in the
+There are several key ideas behind the design of a truly Unix-like operating system.  Firstly, everything is a file.  The screen, keyboard, and mouse are represented in the
 .CW /dev
-directory by special device files.  Programs are small, they do one thing each and do it well.  The programs each handle one part of a task and are used together by piping together standard input and output in scripts. Efficiency is not always the main goal.  Simplicity of design, interoperability of component parts, and flexibility of reuse are the goals of a truly Unix-like OS. Programs are simple filters from standard input to standard output and designed to be used in pipelines, a classic example being to take a screenshot on Plan 9:
+directory by special device files.  Secondly, programs are small; they do one thing each and do it well.  The programs each handle one part of a task and are used together by piping the output of one program to the input of the next in scripts. Efficiency is not always the main goal.  Simplicity of design, interoperability of component parts, and flexibility of reuse are the goals of a truly Unix-like OS. Programs are simple filters from standard input to standard output and designed to be used in pipelines.
 .P1
 cat /dev/screen | topng > screenshot.png
 .P2
+A classic example is taking a screenshot on Plan 9. The contents of the screen device file are piped to the
+.CW topng
+program and saved as a PNG file to disk.
 .NH
 Arduino Boards
 .PP
