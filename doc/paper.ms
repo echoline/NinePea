@@ -48,11 +48,11 @@ What is 9P?
 .PP
 9P is the protocol that makes Plan 9 beautiful engineering.  It is a bytestream protocol for filesystem implementation.  9P is a stream of bytes representing filesystem opens, reads, deletions, etc.  It's more of an API than a filesystem in a more traditional sense.  It refines the concept of a file to a standardized bytestream.  A file is simply a system object that can be opened, closed, read, written, etc.  On more traditional systems a file is usually some data which is stored.  On Unix, one of the design principles was that "everything is a file."  Data are files on storage, but devices are also represented as files.  In
 .CW /dev
-there are device files such as the disks, keyboard, or a webcam.  Some files are synthetically generated, some are on storage.  Some are even remote; on other systems, or an Arduino. 9P extends and refines the concept of a Unix-like filesystem.  It is a bytestream which can be transported in any way, over TCP/IP, inside another file, or in this case over the serial port.  The Plan 9 manual page section 5 describes 9P in detail and all of the messages that can be in the bytestream.
+there are device files such as the disks, keyboard, or a webcam.  Some files are synthetically generated, some are on storage.  Some are even remote; on other systems, or an Arduino. 9P extends the concept of a Unix-like filesystem.  It is a bytestream which can be transported in any way, over TCP/IP, inside another file, or in this case over the serial port.  The Plan 9 manual page section 5 describes 9P in detail and all of the messages that can be in the bytestream.
 .NH
 What is Plan 9?
 .PP
-Plan 9 is a 9P multiplexer and not much else.  On Plan 9, everything is a file more than even on a Unix system.  9P is the mechanism which allows this.  9P is used to share files over the network like NFS does, but also internally.  On Plan 9 there is no single root directory.  The root directory is a container, or namespace. The root of the filesystem is different for different process groups.  The kernel exports a root of 9P filesystems from drivers at locations starting with
+Plan 9 is a 9P multiplexer and not much else.  On Plan 9, everything is a file, more than even on a Unix-like system.  9P is the mechanism which allows this.  9P is used to share files over any bytestream transport, but also internally.  Also, on Plan 9 there is no single root directory.  The root directory is a container, or namespace. The root of the filesystem is different for different process groups.  The kernel exports a root of 9P filesystems from drivers at locations starting with
 .CW #
 , such as
 .CW #p
@@ -61,16 +61,16 @@ for proc and
 for the audio device, but user programs can also post 9P servers to
 .CW #s
 which is commonly bound at
-.CW /srv.
-Some 9P services are in the kernel, some are in user-space. Each process has its own filesystem namespace, instead of having a static root directory like Unix.  Each process can use the
+.CW /srv
+for user-space 9P servers. 9P services can come from the kernel or anywhere else. Each process has its own filesystem namespace, instead of having a static root directory like Unix.  Each process can use the
 .CW mount(1)
 and
 .CW bind(1)
-programs to arrange its view of the filesystem however it wants, instead of a static root and virtual filesystem which every process shares.  Mount is much different on Plan 9 than a Unix, it only speaks 9P.  For example, disks in Plan 9 show up under 
+programs to arrange its view of the filesystem however it wants, instead of a static root and virtual filesystem which every process shares.  Mount is much different on Plan 9 than a Unix; it only speaks 9P.  For example, disks in Plan 9 show up under 
 .CW #S
 , which is commonly bound to
 .CW /dev
-, much like a disk would show up on Unix.  However, to mount a disk another 9P fileserver is needed.  To mount a DOS partition the user first needs dossrv running, which translates from the DOS storage to 9P.  This makes a 9P server show up at 
+, much like a disk would show up on Unix.  However, to mount a disk another 9P fileserver is needed.  The kernel does not know about storage filesystem formats, only disks.  To mount a DOS partition the user first needs dossrv running, which translates from the DOS storage to 9P.  This makes a 9P server show up at
 .CW /srv/dos
 which can be mounted with the 9P-speaking Plan 9 mount command.  Mount doesn't access the disk directly, it accesses the 9P server.  The process to mount the DOS partition ends up more like this:
 .P1
@@ -81,16 +81,16 @@ Many people new to Plan 9 from Unix have made the mistake of running:
 .P1
 mount /dev/dospartition /n/dos
 .P2
-This is how it would work on Unix.  Plan 9 commands share names but sometimes work differently.  In this case, Plan 9 writes 9P directly to the start of the DOS partition, corrupting the storage.  Plan 9 truly adheres to the Unix design principle of giving the user plenty of rope to do anything with, including hanging themself.  Everything is comprised in a powerful paradigm of simple system components with interoperable bytestreams, revolving around extensive use of 9P and per-process filesystem namespaces which can be rearranged with
+This is how it would work on Unix.  Plan 9 commands share names but sometimes work differently.  Unfortunately in this case, Plan 9 writes 9P directly to the start of the DOS partition, corrupting the storage.  Plan 9 truly adheres to the Unix design principle of giving the user plenty of rope to do anything with, including hanging themself.  Everything is comprised in a powerful paradigm of simple system components with interoperable bytestreams, revolving around extensive use of 9P and per-process filesystem namespaces. The namespaces can be rearranged with
 .CW mount
 and
-.CW bind.
-Plan 9 was never as fully developed by so many contributers as an OS like Linux.  This has been good and bad for it.  It does `10% as much 5 times better.' Plan 9 still remains much more minimal, and true to the Unix design philosophy.
+.CW bind
+to form unique views of the filesystem for each different process group. Plan 9 was never as fully developed by so many contributers as an OS like Linux.  This has been good and bad for it.  It does `10% as much 5 times better.' Plan 9 still remains much more minimal, and true to the Unix design philosophy.
 .NH
 What is NinePea?
 .PP
 .I NinePea
-is a very compact 9P server library intended for use with Arduino Megas.  Almost everything runs on the Atmega chip on the Arduino board.  9P typically has a maximum of 8 KB per message, and these chips have only 8 KB of RAM.  Linux's 9P support has a minimum of 4 KB message size supported, which barely fits here.  On a Linux computer the included tty9p program ensures that an entire 9P message is sent or received at a time, but other than that everything runs on the Arduino.  Basically the serial port becomes a 9P fileserver endpoint.  Here is a usage case on Linux using the 9mount convenience program and netcat to listen on TCP/IP:
+is a very compact 9P server library which was originally intended for use with Arduino Megas.  Almost everything runs on the Atmega chip on the Arduino board.  9P typically has a maximum of 8 KB per message, and these chips have only 8 KB of RAM.  Linux's 9P support has a minimum of 4 KB message size supported, which barely fits here.  On a Linux computer the included tty9p program ensures that an entire 9P message is sent or received at a time, but other than that everything runs on the Arduino.  Basically the serial port becomes a 9P fileserver endpoint.  Here is a usage case on Linux using the 9mount convenience program and netcat to listen on TCP/IP:
 .P1
 $ mkfifo pipe
 $ ./tty9p /dev/ttyUSB0 < pipe | nc -l -p 2000 >> pipe &
@@ -140,15 +140,13 @@ was originally meant for use on Arduino boards.  It could be made to work with a
 .I NinePea
 only builds under the Arduino IDE, once the board is configured and programmed as desired it can be plugged into a Plan 9 system and mounted like any other 9P server.  It can be used to gather information from I2C or SPI sensors, to construct or read a signal, or for many other electronics prototyping applications.
 .I NinePea
-is also flexible, the Arduino library is labelled a C++ file but it's really just portable C.  It's just a header and a C file that can be included with a project for simple 9P support.  It does have some drawbacks, it isn't meant to be public-facing.  It doesn't do authentication and it barely does any error checking.  The V4LFS program shows how it can be included and used on Linux to wrap a webcam as a synthetic JPEG.
+is also flexible; the Arduino library is labelled a C++ file but it's really just portable C.  It's just a header and a C file that can be included with a project for simple 9P support.  It does have some drawbacks. It isn't meant to be public-facing.  It doesn't do authentication and it barely does any error checking.  The V4LFS program shows how it can be included and used on Linux to wrap a webcam as a synthetic JPEG.
 .NH
 Performance of 9P
 .PP
 This is an example of the pinfs sketch.  One interesting use of
 .I NinePea
-was using Plan 9 methodologies to bind the networking stack of the Linux machine the Arduino was plugged into over /net of a computer across the country and mounting
-.I NinePea
-remotely:
+was using Plan 9 methodologies to bind the networking stack of the Linux machine the Arduino was plugged into over /net of a computer across the country and mounting the Arduino remotely:
 .P1
 linux$ ./tty9p /dev/ttyUSB0 < pipe | nc -l -p 2000 >> pipe
 
