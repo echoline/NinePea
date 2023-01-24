@@ -72,7 +72,7 @@ programs to arrange its view of the filesystem however it wants, instead of a st
 .CW /dev
 , much like a disk would show up on Unix.  However, to mount a disk another 9P fileserver is needed.  The kernel does not know about storage filesystem formats, only disks.  To mount a DOS partition the user first needs dossrv running, which translates from the DOS storage to 9P.  This makes a 9P server show up at
 .CW /srv/dos
-which can be mounted with the 9P-speaking Plan 9 mount command.  Mount doesn't access the disk directly, it accesses the 9P server.  The process to mount the DOS partition ends up more like this:
+which can be mounted with the 9P-speaking Plan 9 mount command.  Mount doesn't access the disk directly, instead it accesses the 9P server.  The process to mount the DOS partition ends up more like this:
 .P1
 dossrv
 mount /srv/dos /n/dos /dev/dospartition
@@ -81,16 +81,16 @@ Many people new to Plan 9 from Unix have made the mistake of running:
 .P1
 mount /dev/dospartition /n/dos
 .P2
-This is how it would work on Unix.  Plan 9 commands share names but sometimes work differently.  Unfortunately in this case, Plan 9 writes 9P directly to the start of the DOS partition, corrupting the storage.  Plan 9 truly adheres to the Unix design principle of giving the user plenty of rope to do anything with, including hanging themself.  Everything is comprised in a powerful paradigm of simple system components with interoperable bytestreams, revolving around extensive use of 9P and per-process filesystem namespaces. The namespaces can be rearranged with
+This is how it would work on Unix.  Plan 9 commands share names but sometimes work differently.  Unfortunately in this case, Plan 9 writes 9P directly to the start of the DOS partition, corrupting the storage.  Plan 9 truly adheres to the Unix design principle of giving the users plenty of rope to do anything with, including hanging themselves.  Everything is comprised in a powerful paradigm of simple system components with interoperable bytestreams revolving around extensive use of 9P and per-process filesystem namespaces. The namespaces can be rearranged with
 .CW mount
 and
 .CW bind
-to form unique views of the filesystem for each different process group. Plan 9 was never as fully developed by so many contributers as an OS like Linux.  This has been good and bad for it.  It does `10% as much 5 times better.' Plan 9 still remains much more minimal, and true to the Unix design philosophy.
+to form unique views of the filesystem for each different process group. Plan 9 was never as fully developed by so many contributers as an OS like Linux.  This is both good and bad.  It does "ten percent as much, five times better." Plan 9 still remains much more minimal, and true to the Unix design philosophy.
 .NH
 What is NinePea?
 .PP
 .I NinePea
-is a very compact 9P server library which was originally intended for use with Arduino Megas.  Almost everything runs on the Atmega chip on the Arduino board.  9P typically has a maximum of 8 KB per message, and these chips have only 8 KB of RAM.  Linux's 9P support has a minimum of 4 KB message size supported, which barely fits here.  On a Linux computer the included tty9p program ensures that an entire 9P message is sent or received at a time, but other than that everything runs on the Arduino.  Basically the serial port becomes a 9P fileserver endpoint.  Here is a usage case on Linux using the 9mount convenience program and netcat to listen on TCP/IP:
+is a minimal 9P server library which was originally intended for use with Arduino Megas.  Almost everything runs on the Atmega chip on the Arduino board.  9P typically has a maximum of 8 KB per message, and these chips have only 8 KB of RAM.  Linux's 9P support has a minimum of 4 KB message size, which barely fits here.  On a Linux computer the included tty9p program ensures that an entire 9P message is sent or received one at a time, but other than that everything runs on the Arduino.  Basically the serial port becomes a 9P fileserver endpoint.  Here is a usage case on Linux using the 9mount convenience program and netcat to listen on TCP/IP:
 .P1
 $ mkfifo pipe
 $ ./tty9p /dev/ttyUSB0 < pipe | nc -l -p 2000 >> pipe &
@@ -121,17 +121,17 @@ for (pin = A0; pin < (NUM_ANALOG_INPUTS + A0); pin++) {
 	seed ^= analogRead(pin) ^ millis();
 }
 .P2
-to seed a 32-bit Chacha20 pseudo-random number generator.  The file it presents can be bound before
+This is to seed a Chacha20 pseudo-random number generator.  The file it presents can be bound before
 .CW /dev/random
 to replace it with the random number generation from the Arduino.
 .CW AnalogRead(pin)
 returns the ambient voltage on that pin which is XOR'ed with
 .CW millis()
-which is used as the seed for a simple PRNG.
+which is used as the seed for a PRNG.
 .CW Millis()
 returns the number of milliseconds the Arduino has been booted, and the ambient voltage is similar on each pin, so the randomness of the seed might not be great, but then the sketch uses a Chacha20 stream cipher from that seed.  The manual page for
 .CW /dev/random
-specifically says it is only to be used on Plan 9 as a seed for better pseudo-random number generators in the programs themselves. This sketch has not been thoroughly assessed for how well it generates randomness or how cryptographically secure it is. Additional hardware could be attached to the analog inputs to seed the hardware random device better.
+specifically says it is only to be used on Plan 9 as a seed for better pseudo-random number generators in the programs themselves. This sketch has not been thoroughly assessed for how well it generates randomness or how cryptographically secure it is. Additional hardware could be attached to the analog inputs to better seed the hardware random number generator device.
 .NH
 Other Uses
 .PP
