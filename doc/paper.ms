@@ -16,7 +16,8 @@ Introduction
 .NH
 Synthetic Filesystems
 .PP
-Most people who have used a modern computer are familiar with what a JPEG file is.  It's a picture which is generally in disk storage. The user can open it, delete it, etc.  A synthetic file's contents are generated, rather than stored on disk. Imagine opening a JPEG and it's the most recent image from a webcam.  An implementation of exactly this is
+.I NinePea
+is portable C which can be used on other systems besides Arduino.  Most people who have used a modern computer are familiar with what a JPEG file is.  It's a picture which is generally in disk storage. The user can open it, delete it, etc.  A synthetic file's contents are generated, rather than stored on disk. Imagine opening a JPEG and it's the most recent image from a webcam.  An implementation of exactly this is
 .CW V4LFS
 [3] for Linux which uses
 .I NinePea
