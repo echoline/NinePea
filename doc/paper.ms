@@ -6,7 +6,7 @@ Eli Cohen
 echoline@gmail.com
 .AB
 .I NinePea
-is a tiny 9P library specifically designed for use with Arduino Mega boards connected to Unix-like operating systems and Plan 9.
+is a tiny library for 9P servers specifically designed for use with Arduino Mega boards connected to Unix-like operating systems and Plan 9.
 .AE
 .NH
 Introduction
