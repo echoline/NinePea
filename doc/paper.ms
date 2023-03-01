@@ -32,12 +32,78 @@ Arduino Boards
 .PP
 Arduinos are simple open-source electronics prototyping boards.  Programs written in the Arduino IDE for use with these boards are called sketches.  Arduino started as a board with simple Atmel AVR chips.  The Arduino Mega 2560 is based around an Atmega2560 chip, a programmable MCU with only 8 KB RAM, 256 KB of programmable flash, and 4 KB of EEPROM storage.  It has 16 analog-to-digital inputs, 70 pins that can be used for digital I/O, and a lot of other functionality for prototyping. These boards can drive pulse-width modulation signals, be used as controllers for SPI or I2C, and have 4 TTL serial ports.  The Arduino project also encompasses a simple IDE in Java, which compiles C++ sketches to software for the AVR chip.  This of course doesn't run on Plan 9, at least at the time of this writing.  Plan 9 doesn't support Java or C++, and there is little else available on Plan 9 for programming Atmel chips.  All of these examples were compiled, uploaded, and used on Linux.
 .NH
-NinePea Library
+NinePea Library Usage
 .PP
 .I NinePea
-is a minimal 9P server library which was originally intended for use with Arduino Megas.  Some code in the header file for the structs, message types, and bitfield flags was borrowed from Plan9port [4].  Everything for a 9P server runs on the Atmega chip on the Arduino board.  To use the library, first callback functions for each of the 9P message types [5] must be written and pointed to in a callbacks struct.  After that, a 9P message is read from the serial device and buffered into RAM.  The buffer and callbacks structure are then passed to the proc9p function which processes the message.  Proc9p calls the callbacks with at least an Fcall struct as a parameter, and also buffers for reads and writes.  The 9P message buffer is overwritten by proc9p with 9P data to send back to the client, and proc9p returns the total length of the resulting 9P response.  An Arduino sketch can then send that buffer back over the serial port.
+is a minimal 9P server library which was originally intended for use with Arduino Megas.  Some code in the header file for the structs, message types, and bitfield flags was borrowed from Plan9port [4].  Everything for a 9P server runs on the Atmega chip on the Arduino board.  To use the library, first callback functions for each of the 9P message types [5] must be written and pointed to in a callbacks struct. Fids are handled manually with helper fid hash table functions.
+.P1
+Serial.begin(115200);
+
+fs_fid_init(64);
+
+callbacks.attach = fs_attach;
+callbacks.flush = fs_flush;
+callbacks.walk = fs_walk;
+callbacks.open = fs_open;
+callbacks.create = fs_create;
+callbacks.read = fs_read;
+callbacks.write = fs_write;
+callbacks.clunk = fs_clunk;
+callbacks.remove = fs_remove;
+callbacks.stat = fs_stat;
+callbacks.wstat = fs_wstat;
+.P2
+After that, a 9P message is read from the serial device and buffered into RAM.  The buffer and callbacks structure are then passed to the proc9p function which processes the message.  Proc9p calls the callbacks with at least an Fcall struct as a parameter, and also buffers for reads and writes.  The 9P message buffer is overwritten by proc9p with 9P data to send back to the client, and proc9p returns the total length of the resulting 9P response.  An Arduino sketch can then send that buffer back over the serial port.
+.P1
+r = 0;
+while (r < 5) {
+  while (Serial.available() < 1);
+  msg[r++] = Serial.read();
+}
+
+i = 0;
+get4(msg, i, msglen);
+
+if (msg[i] & 1 || msglen > MAX_MSG || msg[i] < TVersion || msg[i] > TWStat) {
+  // error
+}
+
+while (r < msglen) {
+  while (Serial.available() < 1);
+  msg[r++] = Serial.read();
+}
+
+msglen = proc9p(msg, msglen, &callbacks);
+
+Serial.write(msg, msglen);
+.P2
 .PP
-9P typically has a maximum of 8 KB per message, and these chips have only 8 KB of RAM.  Linux's 9P support has a minimum of 4 KB message size, which barely fits here.  On a Linux computer the included tty9p program ensures that an entire 9P message is sent or received one at a time, but other than that everything runs on the Arduino.  Basically the serial port becomes a 9P fileserver endpoint.  Here is a usage case on Linux using the 9mount convenience program and netcat to listen on TCP/IP:
+Handling fids is a bit tricky. Some helper functions make this easier:
+.P1
+struct hentry {
+	unsigned long id;
+	unsigned long data;
+	struct hentry *next;
+	struct hentry *prev;
+	void *aux;
+};
+
+struct htable {
+	unsigned char length;
+	struct hentry **data;
+};
+
+struct hentry* fs_fid_find(unsigned long id);
+struct hentry* fs_fid_add(unsigned long id, unsigned long data);
+void fs_fid_del(unsigned long id);
+void fs_fid_init(int l);
+.P2
+.PP
+9P typically has a maximum of 8 KB per message, and these chips have only 8 KB of RAM.  Linux's 9P support has a minimum of 4 KB message size, which barely fits here.  The iounit is set to 4 KB by default.  On a Linux computer the included tty9p program ensures that an entire 9P message is sent or received one at a time, but other than that everything runs on the Arduino.  The serial port itself becomes a 9P fileserver endpoint.
+.NH
+Pinfs Example
+.PP
+Pinfs is a simple example Arduino sketch. It serves a single directory that shows each of the digital pins as a file. Here is a usage case on Linux using the 9mount convenience program and netcat to listen on TCP/IP:
 .P1
 $ mkfifo pipe
 $ ./tty9p /dev/ttyUSB0 < pipe | nc -l -p 2000 >> pipe &
