@@ -12,13 +12,13 @@ is a tiny 9P library specifically designed for use with Arduino Mega boards conn
 Introduction
 .PP
 .I NinePea
-was originally a project for Arduino.  It implements the 9P filesystem protocol for servers running on the Arduino board.  Compared to other 9P libraries it is more compact. NinePea sacrifices many of the features they would have in favor of minimalism.  It only supports the 9P2000 version of 9P and does not support auth.  It does not do much error checking, and is only meant to be used locally. This is for the advantage of being able to work on systems with only a few kilobytes of RAM.
+[1] was originally a project for Arduino.  It implements the 9P [2] filesystem protocol for servers running on the Arduino board.  Compared to other 9P libraries it is more compact. NinePea sacrifices many of the features they would have in favor of minimalism.  It only supports the 9P2000 version of 9P and does not support auth.  It does not do much error checking, and is only meant to be used locally. This is for the advantage of being able to work on systems with only a few kilobytes of RAM.
 .NH
-What are synthetic filesystems?
+Synthetic Filesystems
 .PP
 Most people who have used a modern computer are familiar with what a JPEG file is.  It's a picture which is generally in disk storage. The user can open it, delete it, etc.  A synthetic file's contents are generated, rather than stored on disk. Imagine opening a JPEG and it's the most recent image from a webcam.  An implementation of exactly this is
 .CW V4LFS
-for Linux which uses
+[3] for Linux which uses
 .I NinePea
 directly.  It layers
 .I NinePea
@@ -28,69 +28,16 @@ over Linux's video4linux subsystem for webcams.  It presents only one synthetic 
 .CW /proc
 filesystem which is a synthetic filesystem from the Linux kernel exposing information about running processes and other system information.
 .NH
-Unix Design Philosophy
-.PP
-There are several key ideas behind the design of a truly Unix-like operating system.  Firstly, everything is a file.  The screen, keyboard, and mouse are represented in the
-.CW /dev
-directory by special device files.  Secondly, programs are small; they do one thing each and do it well.  The programs each handle one part of a task and are used together by piping the output of one program to the input of the next in scripts. Efficiency is not always the main goal.  Simplicity of design, interoperability of component parts, and flexibility of reuse are the goals of a truly Unix-like OS. Programs are simple filters from standard input to standard output and designed to be used in pipelines:
-.P1
-cat /dev/screen | topng > screenshot.png
-.P2
-A classic example is taking a screenshot on Plan 9. The contents of the screen device file are piped to the
-.CW topng
-program and saved as a PNG file to disk.
-.NH
 Arduino Boards
 .PP
-Arduinos are simple open-source electronics prototyping boards.  Arduino started with simple Atmel AVR chips.  The Arduino Mega 2560 is based around an Atmega2560 chip, a programmable MCU with only 8 KB RAM, 256 KB of programmable flash, and 4 KB of EEPROM storage.  It has 16 analog-to-digital inputs, 70 pins that can be used for digital I/O, and a lot of other functionality for prototyping. These boards can drive pulse-width modulation signals, be used as controllers for SPI or I2C, and have 4 TTL serial ports.  The Arduino project also encompasses a simple IDE in Java, which compiles C++ sketches to software for the AVR chip.  This of course doesn't run on Plan 9, at least at the time of this writing.  Plan 9 doesn't support Java or C++, and there is little else available on Plan 9 for programming Atmel chips.  All of these examples were compiled, uploaded, and used on Linux.
+Arduinos are simple open-source electronics prototyping boards.  Programs written in the Arduino IDE for use with these boards are called sketches.  Arduino started as a board with simple Atmel AVR chips.  The Arduino Mega 2560 is based around an Atmega2560 chip, a programmable MCU with only 8 KB RAM, 256 KB of programmable flash, and 4 KB of EEPROM storage.  It has 16 analog-to-digital inputs, 70 pins that can be used for digital I/O, and a lot of other functionality for prototyping. These boards can drive pulse-width modulation signals, be used as controllers for SPI or I2C, and have 4 TTL serial ports.  The Arduino project also encompasses a simple IDE in Java, which compiles C++ sketches to software for the AVR chip.  This of course doesn't run on Plan 9, at least at the time of this writing.  Plan 9 doesn't support Java or C++, and there is little else available on Plan 9 for programming Atmel chips.  All of these examples were compiled, uploaded, and used on Linux.
 .NH
-What is 9P?
-.PP
-9P is the protocol that makes Plan 9 beautiful engineering.  It is a bytestream protocol for filesystem implementation.  9P is a stream of bytes representing filesystem opens, reads, deletions, etc.  It's more of an API than a filesystem in a more traditional sense.  It refines the concept of a file to a standardized bytestream.  A file is simply a system object that can be opened, closed, read, written, etc.  On more traditional systems a file is usually some data which is stored.  On Unix, one of the design principles was that "everything is a file."  Data are files on storage, but devices are also represented as files.  In
-.CW /dev
-there are device files such as the disks, keyboard, or a webcam.  Some files are synthetically generated, some are on storage.  Some are even remote; on other systems, or an Arduino. 9P extends the concept of a Unix-like filesystem.  It is a bytestream which can be transported in any way, over TCP/IP, inside another file, or in this case over the serial port.  The Plan 9 manual page section 5 describes 9P in detail and all of the messages that can be in the bytestream.
-.NH
-What is Plan 9?
-.PP
-Plan 9 is a 9P multiplexer and not much else.  On Plan 9, everything is a file, more than even on a Unix-like system.  9P is the mechanism which allows this.  9P is used to share files over any bytestream transport, but also internally.  Also, on Plan 9 there is no single root directory.  The root directory is a container, or namespace. The root of the filesystem is different for different process groups.  The kernel exports a root of 9P filesystems from drivers at locations starting with
-.CW #
-, such as
-.CW #p
-for proc and
-.CW #A
-for the audio device, but user programs can also post 9P servers to
-.CW #s
-which is commonly bound at
-.CW /srv
-for user-space 9P servers. 9P services can come from the kernel or anywhere else. Each process has its own filesystem namespace, instead of having a static root directory like Unix.  Each process can use the
-.CW mount(1)
-and
-.CW bind(1)
-programs to arrange its view of the filesystem however it wants, instead of a static root and virtual filesystem which every process shares.  Mount is much different on Plan 9 than a Unix; it only speaks 9P.  For example, disks in Plan 9 show up under 
-.CW #S
-, which is commonly bound to
-.CW /dev
-, much like a disk would show up on Unix.  However, to mount a disk another 9P fileserver is needed.  The kernel does not know about storage filesystem formats, only disks.  To mount a DOS partition the user first needs dossrv running, which translates from the DOS storage to 9P.  This makes a 9P server show up at
-.CW /srv/dos
-which can be mounted with the 9P-speaking Plan 9 mount command.  Mount doesn't access the disk directly, instead it accesses the 9P server.  The process to mount the DOS partition ends up more like this:
-.P1
-dossrv
-mount /srv/dos /n/dos /dev/dospartition
-.P2
-Many people new to Plan 9 from Unix have made the mistake of running:
-.P1
-mount /dev/dospartition /n/dos
-.P2
-This is how it would work on Unix.  Plan 9 commands share names but sometimes work differently.  Unfortunately in this case, Plan 9 writes 9P directly to the start of the DOS partition, corrupting the storage.  Plan 9 truly adheres to the Unix design principle of giving the users plenty of rope to do anything with, including hanging themselves.  Everything is comprised in a powerful paradigm of simple system components with interoperable bytestreams revolving around extensive use of 9P and per-process filesystem namespaces. The namespaces can be rearranged with
-.CW mount
-and
-.CW bind
-to form unique views of the filesystem for each different process group. Plan 9 was never as fully developed by so many contributers as an OS like Linux.  This is both good and bad.  It does "ten percent as much, five times better." Plan 9 still remains much more minimal, and true to the Unix design philosophy.
-.NH
-What is NinePea?
+NinePea Library
 .PP
 .I NinePea
-is a minimal 9P server library which was originally intended for use with Arduino Megas.  Almost everything runs on the Atmega chip on the Arduino board.  9P typically has a maximum of 8 KB per message, and these chips have only 8 KB of RAM.  Linux's 9P support has a minimum of 4 KB message size, which barely fits here.  On a Linux computer the included tty9p program ensures that an entire 9P message is sent or received one at a time, but other than that everything runs on the Arduino.  Basically the serial port becomes a 9P fileserver endpoint.  Here is a usage case on Linux using the 9mount convenience program and netcat to listen on TCP/IP:
+is a minimal 9P server library which was originally intended for use with Arduino Megas.  Some code in the header file for the structs, message types, and bitfield flags was borrowed from Plan9port [4].  Everything for a 9P server runs on the Atmega chip on the Arduino board.  To use the library, first callback functions for each of the 9P message types [5] must be written and pointed to in a callbacks struct.  After that, a 9P message is read from the serial device and buffered into RAM.  The buffer and callbacks structure are then passed to the proc9p function which processes the message.  Proc9p calls the callbacks with at least an Fcall struct as a parameter, and also buffers for reads and writes.  The 9P message buffer is overwritten by proc9p with 9P data to send back to the client, and proc9p returns the total length of the resulting 9P response.  An Arduino sketch can then send that buffer back over the serial port.
+.PP
+9P typically has a maximum of 8 KB per message, and these chips have only 8 KB of RAM.  Linux's 9P support has a minimum of 4 KB message size, which barely fits here.  On a Linux computer the included tty9p program ensures that an entire 9P message is sent or received one at a time, but other than that everything runs on the Arduino.  Basically the serial port becomes a 9P fileserver endpoint.  Here is a usage case on Linux using the 9mount convenience program and netcat to listen on TCP/IP:
 .P1
 $ mkfifo pipe
 $ ./tty9p /dev/ttyUSB0 < pipe | nc -l -p 2000 >> pipe &
@@ -103,6 +50,11 @@ d03 d08 d13 d18 d23 d28 d33 d38 d43 d48 d53 d58 d63 d68
 d04 d09 d14 d19 d24 d29 d34 d39 d44 d49 d54 d59 d64 d69
 .P2
 This is the pinfs example running on the Arduino.  First a fifo pipe is made with the standard mkfifo command.  The tty9p utility is used to set serial port parameters and packetize the 9P messages on the serial port, and it is looped through the fifo pipe and netcat to listen on TCP port 2000.  9mount is a convenience program for making 9P mounting simpler on Linux, and here it is being used to mount the serial port through the above command.  Then the filesystem can just be accessed with the standard Linux tools.  Shown here is a listing of all the synthetic files being generated by the Arduino board.  This example is running on Linux, but a Plan 9 computer can easily mount the service on the Linux computer over TCP.  The user can write a 1 or 0 to d13 to turn on or off the LED on digital pin 13 of the Arduino board, and can read or write any of the 70 files to access the digital I/O state of any pin.
+.PP
+On Plan 9, the serial port can be mounted directly. 9P doesn't care about the underlying transport, so on Plan 9 this works with any file giving a 9P server:
+.P1
+% mount /shr/usb/eiaU50b4c /n/arduino
+.P2
 .NH
 Randomfs Example Sketch
 .PP
@@ -121,7 +73,7 @@ for (pin = A0; pin < (NUM_ANALOG_INPUTS + A0); pin++) {
 	seed ^= analogRead(pin) ^ millis();
 }
 .P2
-This is to seed a Chacha20 pseudo-random number generator.  The file it presents can be bound before
+This is to seed a Chacha20 pseudo-random number generator.  The Chacha20 cipher code [6] in this sketch is borrowed from 9front.  The file it presents can be bound before
 .CW /dev/random
 to replace it with the random number generation from the Arduino.
 .CW AnalogRead(pin)
@@ -131,7 +83,11 @@ which is used as the seed for a PRNG.
 .CW Millis()
 returns the number of milliseconds the Arduino has been booted, and the ambient voltage is similar on each pin, so the randomness of the seed might not be great, but then the sketch uses a Chacha20 stream cipher from that seed.  The manual page for
 .CW /dev/random
-specifically says it is only to be used on Plan 9 as a seed for better pseudo-random number generators in the programs themselves. This sketch has not been thoroughly assessed for how well it generates randomness or how cryptographically secure it is. Additional hardware could be attached to the analog inputs to better seed the hardware random number generator device.
+specifically says it is only to be used on Plan 9 as a seed for better pseudo-random number generators in the programs themselves. This sketch has not been thoroughly assessed for how well it generates randomness or how cryptographically secure it is. Additional hardware could be attached to the analog inputs to better seed the hardware random number generator device. For example, decaying particles from a block of radioactive metal could be used to input random voltages to the pins for seeding the hardware random number generator.
+.NH
+Previous Work
+.PP
+Inferno's Styx protocol, which is very similar to 9P, was previously used [7] on Lego Mindstorms RCX bricks.  That work was specific to the Lego RCX; it was never meant as a library.  Styx-on-a-Brick was only used for one server for the Lego brick that exposed the motors and sensors.  NinePea is a more general purpose library in portable C.  It is a very small implementation of a 9P server intended for systems without many resources.  It does borrow some structs and other header data from Plan9port, but it dispenses with a lot of functionality that would be available in other 9P server libraries.
 .NH
 Other Uses
 .PP
@@ -162,25 +118,34 @@ cpu% echo 1 > /n/a/d13
 .I NinePea
 locally on the Linux computer, the main bottleneck as expected was the serial port itself, sending 9P back and forth as quickly as it could.  The Arduino has an LED on digital pin 13 and LEDs for serial recieve and transmit.  When it was mounted locally the LEDs for the serial port stayed on continuously while blinking the pin 13 LED in a loop, whereas when it was mounted remotely there was a visible delay as each 9P message was received.
 .NH
-Conclusion
-.PP
-The
-.I NinePea
-library can be copied easily for use on other systems.  V4LFS is an example for Linux available at
-.CW https://github.com/echoline/v4lfs.
-.I NinePea
-with a few more examples for Arduino Megas are available at the link
-.CW https://github.com/echoline/NinePea.
-9P and Plan 9 are fantastic software engineering, and exploring them can only help anyone interested in developing for a Unix-type system.
-.NH
 References
 .PP
 .br
+[1]
+.CW https://github.com/echoline/NinePea
+The source for this project
+.br
+[2]
 .CW https://9p.cat-v.org
 A site about 9P
 .br
+[3]
+.CW https://github.com/echoline/V4LFS
+NinePea-based V4LFS Linux Webcam Fileserver
+.br
+[4]
+.CW https://9fans.github.io/plan9port/
+Plan9port website
+.br
+[5]
 .CW intro(5)
 Introduction to manual section 5 of Plan 9
 .br
-.CW https://github.com/echoline/NinePea
-The source for this project
+[6]
+.CW http://git.9front.org/plan9front/plan9front/HEAD/sys/src
+.CW /libsec/port/chachablock.c/raw
+Chacha20 stream cipher code
+.br
+[7]
+.CW http://doc.cat-v.org/inferno/4th_edition/styx-on-a-brick/
+Inferno "Styx-on-a-Brick" paper
