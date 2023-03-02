@@ -71,7 +71,7 @@ for (pin = A0; pin < (NUM_ANALOG_INPUTS + A0); pin++) {
 	seed ^= analogRead(pin) ^ millis();
 }
 .P2
-This is to seed a Chacha20 pseudo-random number generator.  The Chacha20 cipher code [6] in this sketch is borrowed from 9front.  The file it presents can be bound before
+This is to seed a Chacha20 pseudo-random number generator.  The Chacha20 cipher code [4] in this sketch is borrowed from 9front.  The file it presents can be bound before
 .CW /dev/random
 to replace it with the random number generation from the Arduino.
 .CW AnalogRead(pin)
@@ -83,10 +83,20 @@ returns the number of milliseconds the Arduino has been booted, and the ambient 
 .CW /dev/random
 specifically says it is only to be used on Plan 9 as a seed for better pseudo-random number generators in the programs themselves. This sketch has not been thoroughly assessed for how well it generates randomness or how cryptographically secure it is. Additional hardware could be attached to the analog inputs to better seed the hardware random number generator device. For example, decaying particles from a block of radioactive metal could be used to input random voltages to the pins for seeding the hardware random number generator.
 .NH
+Design Choices
+.PP
+The
+.I NinePea
+library was designed to be compact. It leaves out a lot of functionality that other 9P libraries have. It doesn't have anything in it specifically for any transport layer. It only operates on buffers which are filled and read from by the implementation. It doesn't multiplex connections; this has to be handled by the implementation, if at all.
+.I NinePea
+doesn't do anything special for delayed RReads or TFlushes. This can be handled separately by the implementation. TReads can be buffered and replied to only when they are ready. By default, everything is handled in-order by the proc9p function. An incoming TRead is processed immediately and an RRead is sent. One project using this library was a hardware cons device using an Arduino Mega 2560, a keyboard, and a television monitor. In that project, RReads sometimes needed to be delayed, and TFlushes needed to be handled. The way this was achieved was by buffering TReads and handling them separately from other message types elsewhere in a loop.
+.PP
+Another project [5] used an ESP32 board as a 9P-speaking wifi dongle. The goal of this project was to make a wifi dongle for Plan 9 that only required a USB-to-serial driver, and then could simply be mounted as a 9P device. In that project delayed RReads were handled by every incoming 9P message spawning a separate thread. When threads were complete, they locked a shared lock and sent their response.
+.NH
 NinePea Library Usage
 .PP
 .I NinePea
-is a minimal 9P server library which was originally intended for use with Arduino Megas.  Some code in the header file for the structs, message types, and bitfield flags was borrowed from Plan9port [4].  Everything for a 9P server runs on the Atmega chip on the Arduino board.  To use the library, first callback functions for each of the 9P message types [5] must be written and pointed to in a callbacks struct. Fids are handled manually with helper fid hash table functions.
+is a minimal 9P server library which was originally intended for use with Arduino Megas.  Some code in the header file for the structs, message types, and bitfield flags was borrowed from Plan9port [6].  Everything for a 9P server runs on the Atmega chip on the Arduino board.  To use the library, first callback functions for each of the 9P message types [7] must be written and pointed to in a callbacks struct. Fids are handled manually with helper fid hash table functions.
 .P1
 Serial.begin(115200);
 
@@ -154,7 +164,7 @@ void fs_fid_init(int l);
 .NH
 Previous Work
 .PP
-Inferno's Styx protocol, which is very similar to 9P, was previously used [7] on Lego Mindstorms RCX bricks.  That work was specific to the Lego RCX; it was never meant as a library.  Styx-on-a-Brick was only used for one server for the Lego brick that exposed the motors and sensors.  NinePea is a more general purpose library in portable C.  It is a very small implementation of a 9P server intended for systems without many resources.  It does borrow some structs and other header data from Plan9port, but it dispenses with a lot of functionality that would be available in other 9P server libraries.
+Inferno's Styx protocol, which is very similar to 9P, was previously used [8] on Lego Mindstorms RCX bricks.  That work was specific to the Lego RCX; it was never meant as a library.  Styx-on-a-Brick was only used for one server for the Lego brick that exposed the motors and sensors.  NinePea is a more general purpose library in portable C.  It is a very small implementation of a 9P server intended for systems without many resources.  It does borrow some structs and other header data from Plan9port, but it dispenses with a lot of functionality that would be available in other 9P server libraries.
 .NH
 Other Uses
 .PP
@@ -181,7 +191,7 @@ This command sequence serves the serial port on TCP port 2000 from Linux, switch
 .P1
 cpu% echo 1 > /n/a/d13
 .P2
-9P adds a lot of overhead of messages going back and forth, besides the data inside it.  In this case only one byte was being sent, but the overhead of 9P and the Internet across the country and back caused the data to take quite a long time to be sent out across the Internet, return, and finally go out and back over the 115200 baud serial port.  The serial port was not the main bottleneck in this case.  9P is still very slow over long distances because of all the overhead going back and forth for each operation.  Mounting 
+9P adds a lot of overhead of messages going back and forth, besides the data inside it.  In this case only one byte was being sent, but the overhead of 9P and the Internet across the country and back caused the data to take quite a long time to be sent out across the Internet, return, and finally go out and back over the 115200 baud serial port.  The serial port was not the main bottleneck in this case.  9P is still very slow over long distances because of all the overhead going back and forth for each operation.  Each operation of writing a 1 to the d13 file involved several bytes of 9P out and back for walks, opens, writes, and closes. Mounting 
 .I NinePea
 locally on the Linux computer, the main bottleneck as expected was the serial port itself, sending 9P back and forth as quickly as it could.  The Arduino has an LED on digital pin 13 and LEDs for serial recieve and transmit.  When it was mounted locally the LEDs for the serial port stayed on continuously while blinking the pin 13 LED in a loop, whereas when it was mounted remotely there was a visible delay as each 9P message was received.
 .NH
@@ -201,18 +211,22 @@ A site about 9P
 NinePea-based V4LFS Linux Webcam Fileserver
 .br
 [4]
-.CW https://9fans.github.io/plan9port/
-Plan9port website
-.br
-[5]
-.CW intro(5)
-Introduction to manual section 5 of Plan 9
-.br
-[6]
 .CW http://git.9front.org/plan9front/plan9front/HEAD/sys/src
 .CW /libsec/port/chachablock.c/raw
 Chacha20 stream cipher code
 .br
+[5]
+.CW https://github.com/echoline/etherESP32
+ESP32 wifi dongle
+.br
+[6]
+.CW https://9fans.github.io/plan9port/
+Plan9port website
+.br
 [7]
+.CW intro(5)
+Introduction to manual section 5 of Plan 9
+.br
+[8]
 .CW http://doc.cat-v.org/inferno/4th_edition/styx-on-a-brick/
 Inferno "Styx-on-a-Brick" paper
