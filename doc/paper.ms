@@ -24,7 +24,7 @@ filesystem which is a synthetic filesystem from the Linux kernel exposing inform
 .I NinePea
 is used to create synthetic filesystems such as these on separate hardware devices or as programs running in user-space. Examples of the usage of
 .I NinePea
-include pinfs which presents the digital GPIO pins of an Arduino as files, randomfs which implements a hardware random number device file using a mountable Arduino, V4LFS [4] for Linux which presents the most recent picture taken by a webcam as a JPEG, a hardware cons device using a television monitor and a PS/2 keyboard connected to an Arduino, and the unfinished etherESP32 [5] implementation which is intended to turn an ESP32 board into a mountable WiFi network device.
+include pinfs which presents the digital GPIO pins of an Arduino as files, randomfs which implements a hardware random number device file using a mountable Arduino, V4LFS [3] for Linux which presents the most recent picture taken by a webcam as a JPEG, a hardware cons device using a television monitor and a PS/2 keyboard connected to an Arduino, and the unfinished etherESP32 [4] implementation which is intended to turn an ESP32 board into a mountable WiFi network device.
 .NH
 Arduino Boards
 .PP
@@ -68,7 +68,7 @@ for (pin = A0; pin < (NUM_ANALOG_INPUTS + A0); pin++) {
 	seed ^= analogRead(pin) ^ millis();
 }
 .P2
-This is to seed a Chacha20 pseudo-random number generator.  The Chacha20 cipher code [4] in this sketch is borrowed from 9front.  The file it presents can be bound before
+This is to seed a Chacha20 pseudo-random number generator.  The Chacha20 cipher code [5] in this sketch is borrowed from 9front.  The file it presents can be bound before
 .CW /dev/random
 to replace it with the random number generation from the Arduino.
 .CW AnalogRead(pin)
@@ -236,13 +236,13 @@ A site about 9P
 NinePea-based V4LFS Linux webcam fileserver
 .br
 [4]
+.CW https://github.com/echoline/etherESP32
+ESP32 WiFi dongle
+.br
+[5]
 .CW http://git.9front.org/plan9front/plan9front/HEAD/sys/src
 .CW /libsec/port/chachablock.c/raw
 Chacha20 stream cipher code
-.br
-[5]
-.CW https://github.com/echoline/etherESP32
-ESP32 WiFi dongle
 .br
 [6]
 .CW https://9fans.github.io/plan9port/
