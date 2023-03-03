@@ -80,7 +80,7 @@ returns the number of milliseconds the Arduino has been booted, and the ambient 
 .CW /dev/random
 specifically says it is only to be used on Plan 9 as a seed for better pseudo-random number generators in the programs themselves. This sketch has not been thoroughly assessed for how well it generates randomness or how cryptographically secure it is. Additional hardware could be attached to the analog inputs to better seed the hardware random number generator device. For example, decaying particles from a block of radioactive metal could be used to input random voltages to the pins for seeding the hardware random number generator.
 .NH
-Design Choices
+Design Choices and Further Examples
 .PP
 The
 .I NinePea
